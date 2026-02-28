@@ -5,6 +5,7 @@ function Despesas({ user }) {
     const [despesas, setDespesas] = useState([]);
     const [form, setForm] = useState({ projeto_id: '', centro_custo_id: '', categoria: '', fornecedor: '', valor: '', moeda: 'MZN', metodo_pagamento: '', comprovativo_url: '', responsavel_id: '', estado: 'submetido' });
     const [msg, setMsg] = useState('');
+    const [loading, setLoading] = useState(true);
 
     const fetchDespesas = () => {
         axios.get('/api/despesa').then(res => setDespesas(res.data));
