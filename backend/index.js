@@ -22,15 +22,32 @@ const routes = require('./routes');
 app.use('/api', routes);
 
 // SERVIR FRONTEND CENTRALIZADO (Monólito)
-// 1. Apontar para os arquivos estáticos gerados pelo build do React
-const frontendPath = path.join(__dirname, '../frontend/build');
-app.use(express.static(frontendPath));
+const fs = require('fs');
+const frontendPath = path.resolve(__dirname, '..', 'frontend', 'build');
+
+console.log('--- Verificação de Deploy ---');
+console.log('Buscando Frontend em:', frontendPath);
+if (fs.existsSync(frontendPath)) {
+    console.log('Diretório do frontend encontrado ✅');
+    app.use(express.static(frontendPath));
+} else {
+    console.warn('Diretório do frontend NÃO encontrado ❌ (Verifique o build no Render)');
+}
 
 // 2. Rota curinga para o React (SPA) lidar com o roteamento interno
 app.get('*', (req, res) => {
     // Se a rota não for /api, devolve o index.html do React
     if (!req.path.startsWith('/api')) {
-        res.sendFile(path.join(frontendPath, 'index.html'));
+        const indexPath = path.join(frontendPath, 'index.html');
+        if (fs.existsSync(indexPath)) {
+            res.sendFile(indexPath);
+        } else {
+            res.status(404).json({
+                error: "Página não encontrada",
+                message: "O frontend não foi compilado ou index.html não existe.",
+                path_attempted: indexPath
+            });
+        }
     }
 });
 
