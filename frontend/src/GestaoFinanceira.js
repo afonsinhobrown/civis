@@ -75,16 +75,20 @@ function GestaoFinanceira() {
                         </thead>
                         <tbody>
                             {stats.projetos.map(p => {
-                                const ratio = (p.totalDes / p.orçamento_total) * 100;
+                                const orcamento = Number(p.orcamento_total || p.orçamento_total || 0);
+                                const totalDes = Number(p.totalDes || 0);
+                                const totalRec = Number(p.totalRec || 0);
+                                const ratio = orcamento > 0 ? (totalDes / orcamento) * 100 : 0;
+
                                 return (
                                     <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
                                         <td style={{ padding: '1rem' }}>
                                             <strong>{p.nome}</strong><br />
                                             <code style={{ fontSize: '0.75rem' }}>{p.codigo_interno}</code>
                                         </td>
-                                        <td style={{ padding: '1rem' }}>{p.orçamento_total.toLocaleString()} MT</td>
-                                        <td style={{ padding: '1rem', color: 'var(--danger)' }}>{p.totalDes.toLocaleString()} MT</td>
-                                        <td style={{ padding: '1rem', fontWeight: 'bold' }}>{(p.totalRec - p.totalDes).toLocaleString()} MT</td>
+                                        <td style={{ padding: '1rem' }}>{orcamento.toLocaleString()} MT</td>
+                                        <td style={{ padding: '1rem', color: 'var(--danger)' }}>{totalDes.toLocaleString()} MT</td>
+                                        <td style={{ padding: '1rem', fontWeight: 'bold' }}>{(totalRec - totalDes).toLocaleString()} MT</td>
                                         <td style={{ padding: '1rem' }}>
                                             <div style={{ width: '100px', height: '10px', background: '#1e293b', borderRadius: '5px', overflow: 'hidden' }}>
                                                 <div style={{ width: `${Math.min(ratio, 100)}%`, height: '100%', background: ratio > 90 ? 'var(--danger)' : 'var(--accent)' }}></div>
