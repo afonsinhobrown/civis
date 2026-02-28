@@ -9,22 +9,24 @@ function Dashboard() {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const [rRec, rDes, rPat, rBen] = await Promise.all([
+                const [rRec, rDes, rPat, rBen, rProj] = await Promise.all([
                     axios.get('/api/receita'),
                     axios.get('/api/despesa'),
                     axios.get('/api/patrimonio'),
-                    axios.get('/api/beneficiario')
+                    axios.get('/api/beneficiario'),
+                    axios.get('/api/projeto')
                 ]);
 
                 const totalRec = rRec.data.reduce((acc, r) => acc + Number(r.valor), 0);
                 const totalDes = rDes.data.reduce((acc, d) => acc + Number(d.valor), 0);
                 const saldoAtual = totalRec - totalDes;
 
-                // Cálculo Real de Impacto (Número de beneficiários no banco)
-                const familiasReais = rBen.data.length;
+                // Detalhamento de Impacto por Projeto
+                const impactoPorProjeto = rProj.data.map(p => {
+                    const count = rBen.data.filter(b => b.projeto_id === p.id).length;
+                    return { nome: p.nome, count };
+                }).filter(p => p.count > 0);
 
-                // Cálculo de Burn Rate (Meses restantes baseados na média de gastos)
-                // Se não houver despesas, assumimos 12 meses como padrão de segurança
                 const mediaGastosMensal = totalDes > 0 ? totalDes / 1 : 0;
                 const mesesRestantes = (mediaGastosMensal > 0 && saldoAtual > 0)
                     ? (saldoAtual / mediaGastosMensal).toFixed(1)
@@ -35,21 +37,14 @@ function Dashboard() {
                     despesas: totalDes,
                     saldo: saldoAtual,
                     execucao: totalRec > 0 ? (totalDes / totalRec) * 100 : 0,
-                    numAtivos: rPat.data.length,
-                    impacto: familiasReais,
+                    impacto: rBen.data.length,
+                    impactoDetalhado: impactoPorProjeto,
                     mesesOperacao: mesesRestantes
                 });
 
-                // Geração de Insight REAL
-                if (saldoAtual < 0) {
-                    setInsight("⚠️ Alerta Financeiro: O saldo em caixa está negativo. Verifique as receitas pendentes imediatamente.");
-                } else if (totalRec === 0) {
-                    setInsight("💡 Dica de Início: Registe a sua primeira entrada de fundos (Receita) para começar o monitoramento financeiro.");
-                } else if (familiasReais === 0) {
-                    setInsight("📌 Próximo Passo: Registe os beneficiários dos seus projetos para visualizar o impacto social real.");
-                } else {
-                    setInsight("🚀 Sistema Ativo: Monitorando " + familiasReais + " beneficiários com saldo operacional positivo.");
-                }
+                if (saldoAtual < 0) setInsight("⚠️ Alerta Financeiro: Saldo negativo.");
+                else if (rBen.data.length === 0) setInsight("📌 Próximo Passo: Registe beneficiários.");
+                else setInsight("🚀 Sistema Ativo: " + rBen.data.length + " beneficiário(s) monitorado(s).");
 
             } catch (err) {
                 console.error(err);
@@ -60,7 +55,7 @@ function Dashboard() {
         fetchStats();
     }, []);
 
-    if (loading) return <div className="card">Sincronizando Inteligência Estratégica...</div>;
+    if (loading) return <div className="card">Sincronizando Governança...</div>;
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -75,9 +70,21 @@ function Dashboard() {
                 </div>
 
                 <div className="card" style={{ borderLeft: '8px solid var(--accent)' }}>
-                    <small style={{ color: 'var(--text-muted)' }}>Métricas de Impacto Social</small>
+                    <small style={{ color: 'var(--text-muted)' }}>Métricas de Impacto Social (Real)</small>
                     <h2 style={{ fontSize: '2.5rem', fontWeight: '900', color: 'var(--accent)' }}>{stats.impacto} <small style={{ fontSize: '1rem' }}>Famílias</small></h2>
-                    <p style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>📈 Impacto direto calculado via execução nos distritos.</p>
+
+                    <div style={{ marginTop: '1rem' }}>
+                        {stats.impactoDetalhado && stats.impactoDetalhado.length > 0 ? (
+                            stats.impactoDetalhado.map((p, i) => (
+                                <div key={i} style={{ borderTop: '1px solid var(--border)', paddingTop: '8px', marginTop: '8px' }}>
+                                    <small style={{ display: 'block', fontWeight: 'bold' }}>{p.nome}</small>
+                                    <small style={{ color: 'var(--accent)' }}>Impacto: {p.count} beneficiário(s)</small>
+                                </div>
+                            ))
+                        ) : (
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Aguardando registro de beneficiários por projeto.</p>
+                        )}
+                    </div>
                 </div>
             </div>
 
