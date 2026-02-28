@@ -60,16 +60,16 @@ function App() {
             </nav>
 
             <main className="main-content">
-                {modulo === 'dashboard' && <Dashboard />}
-                {modulo === 'financeiro' && <GestaoFinanceira />}
-                {modulo === 'salarios' && <Salarios />}
-                {modulo === 'patrimonio' && <Patrimonio />}
-                {modulo === 'projetos' && <Projetos />}
-                {modulo === 'usuarios' && <Usuarios />}
-                {modulo === 'receitas' && <Receitas />}
+                {modulo === 'dashboard' && <Dashboard user={user} />}
+                {modulo === 'financeiro' && <GestaoFinanceira user={user} />}
+                {modulo === 'salarios' && <Salarios user={user} />}
+                {modulo === 'patrimonio' && <Patrimonio user={user} />}
+                {modulo === 'projetos' && <Projetos user={user} />}
+                {modulo === 'usuarios' && <Usuarios user={user} />}
+                {modulo === 'receitas' && <Receitas user={user} />}
                 {modulo === 'despesas' && <Despesas user={user} />}
-                {modulo === 'auditoria' && <Auditoria />}
-                {modulo === 'config' && <Configuracao />}
+                {modulo === 'auditoria' && <Auditoria user={user} />}
+                {modulo === 'config' && <Configuracao user={user} />}
             </main>
         </div>
     );

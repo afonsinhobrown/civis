@@ -4,20 +4,22 @@ const pool = require('./db_selector');
 const { autenticar, verificarToken, permitirPerfis } = require('./auth');
 const { exportarExcel, exportarPDF } = require('./export');
 
-// Aprovar despesa
-router.post('/despesa/:id/aprovar', verificarToken, permitirPerfis('Administrador', 'Financeiro'), async (req, res) => {
+// Aprovar despesa com parecer
+router.post('/despesa/:id/aprovar', verificarToken, permitirPerfis('Administrador', 'Financeiro', 'Diretor'), async (req, res) => {
+    const { parecer } = req.body;
     try {
-        const result = await pool.query('UPDATE despesa SET estado = $1 WHERE id = $2 RETURNING *', ['aprovado', req.params.id]);
+        const result = await pool.query('UPDATE despesa SET estado = $1, parecer_coordenador = $2 WHERE id = $3 RETURNING *', ['aprovado', parecer, req.params.id]);
         res.json(result.rows[0]);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// Rejeitar despesa
-router.post('/despesa/:id/rejeitar', verificarToken, permitirPerfis('Administrador', 'Financeiro'), async (req, res) => {
+// Mandar despesa para revisão ou rejeitar
+router.post('/despesa/:id/reconsiderar', verificarToken, permitirPerfis('Administrador', 'Financeiro', 'Diretor'), async (req, res) => {
+    const { acao, parecer } = req.body; // acao: 'revisar' ou 'rejeitado'
     try {
-        const result = await pool.query('UPDATE despesa SET estado = $1 WHERE id = $2 RETURNING *', ['rejeitado', req.params.id]);
+        const result = await pool.query('UPDATE despesa SET estado = $1, parecer_coordenador = $2 WHERE id = $3 RETURNING *', [acao, parecer, req.params.id]);
         res.json(result.rows[0]);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -83,26 +85,33 @@ router.post('/receita', verificarToken, permitirPerfis('Administrador', 'Finance
 
 router.get('/receita', verificarToken, async (req, res) => {
     try {
-        const result = await pool.query(`
+        let sql = `
             SELECT r.*, p.nome as projeto_nome, f.nome as financiador_nome 
             FROM receita r 
             LEFT JOIN projeto p ON r.projeto_id = p.id 
             LEFT JOIN financiador f ON r.financiador_id = f.id
-            ORDER BY r.data DESC
-        `);
+        `;
+        let params = [];
+
+        if (req.user.perfil === 'Gestor de Projeto') {
+            sql += ` WHERE p.ong_id = $1 AND (p.id IN (SELECT id FROM projeto WHERE ong_id = $1)) `; // Simplificado: gestores de uma ONG veem os dela. Idealmente um link gestor_projeto.
+            params = [req.user.ong_id];
+        }
+
+        sql += ` ORDER BY r.data DESC `;
+        const result = await pool.query(sql, params);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// Despesa
 router.post('/despesa', verificarToken, permitirPerfis('Administrador', 'Financeiro', 'Gestor de Projeto'), async (req, res) => {
-    const { projeto_id, centro_custo_id, categoria, fornecedor, valor, moeda, metodo_pagamento, comprovativo_url, responsavel_id, estado } = req.body;
+    const { projeto_id, atividade_id, justificativa, centro_custo_id, categoria, fornecedor, valor, moeda, metodo_pagamento, comprovativo_url, responsavel_id, estado } = req.body;
     try {
         const result = await pool.query(
-            'INSERT INTO despesa (projeto_id, centro_custo_id, categoria, fornecedor, valor, moeda, metodo_pagamento, comprovativo_url, responsavel_id, estado) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
-            [projeto_id, centro_custo_id, categoria, fornecedor, valor, moeda, metodo_pagamento, comprovativo_url, responsavel_id, estado]
+            'INSERT INTO despesa (projeto_id, atividade_id, justificativa, centro_custo_id, categoria, fornecedor, valor, moeda, metodo_pagamento, comprovativo_url, responsavel_id, estado) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *',
+            [projeto_id, atividade_id, justificativa, centro_custo_id, categoria, fornecedor, valor, moeda, metodo_pagamento, comprovativo_url, responsavel_id, estado || 'submetido']
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
@@ -112,14 +121,23 @@ router.post('/despesa', verificarToken, permitirPerfis('Administrador', 'Finance
 
 router.get('/despesa', verificarToken, async (req, res) => {
     try {
-        const result = await pool.query(`
-            SELECT d.*, p.nome as projeto_nome, u.nome as responsavel_nome, cc.nome as centro_custo_nome
+        let sql = `
+            SELECT d.*, p.nome as projeto_nome, u.nome as responsavel_nome, cc.nome as centro_custo_nome, a.nome as atividade_nome
             FROM despesa d
             LEFT JOIN projeto p ON d.projeto_id = p.id
             LEFT JOIN usuario u ON d.responsavel_id = u.id
             LEFT JOIN centro_custo cc ON d.centro_custo_id = cc.id
-            ORDER BY d.data_despesa DESC
-        `);
+            LEFT JOIN atividade a ON d.atividade_id = a.id
+        `;
+        let params = [];
+
+        if (req.user.perfil === 'Gestor de Projeto') {
+            sql += ` WHERE d.responsavel_id = $1 OR p.id IN (SELECT id FROM projeto WHERE ong_id = $2) `;
+            params = [req.user.id, req.user.ong_id];
+        }
+
+        sql += ` ORDER BY d.data_despesa DESC `;
+        const result = await pool.query(sql, params);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -236,7 +254,50 @@ router.post('/projeto', verificarToken, permitirPerfis('Administrador', 'Gestor 
 });
 router.get('/projeto', verificarToken, async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM projeto');
+        let sql = `
+            SELECT p.*, u.nome as responsavel_nome 
+            FROM projeto p 
+            LEFT JOIN usuario u ON p.ong_id = u.ong_id AND u.perfil = 'Gestor de Projeto'
+        `;
+        let params = [];
+
+        if (req.user.perfil === 'Gestor de Projeto') {
+            sql += ` WHERE p.ong_id = $1 `; // Filtro por ONG para começar
+            params = [req.user.ong_id];
+        }
+
+        sql += ` ORDER BY p.data_inicio DESC `;
+        const result = await pool.query(sql, params);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Atividades
+router.post('/atividade', verificarToken, permitirPerfis('Administrador', 'Gestor de Projeto'), async (req, res) => {
+    const { projeto_id, nome, orcamento_previsto, responsavel_id, data_inicio, data_fim, status } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO atividade (projeto_id, nome, orcamento_previsto, responsavel_id, data_inicio, data_fim, status) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+            [projeto_id, nome, orcamento_previsto, responsavel_id || req.user.id, data_inicio, data_fim, status || 'planeado']
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/atividade', verificarToken, async (req, res) => {
+    const { projeto_id } = req.query;
+    try {
+        let sql = 'SELECT * FROM atividade';
+        let params = [];
+        if (projeto_id) {
+            sql += ' WHERE projeto_id = $1';
+            params = [projeto_id];
+        }
+        const result = await pool.query(sql, params);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -259,17 +320,17 @@ router.get('/folha_pagamento', verificarToken, permitirPerfis('Administrador', '
 });
 
 router.post('/folha_pagamento', verificarToken, permitirPerfis('Administrador', 'Financeiro'), async (req, res) => {
-    const { usuario_id, mes_referencia, ano_referencia, salario_base, subsidios, desconto_inss, desconto_irps, salario_liquido, data_pagamento } = req.body;
+    const { usuario_id, projeto_id, mes_referencia, ano_referencia, salario_base, subsidios, desconto_inss, desconto_irps, salario_liquido, data_pagamento } = req.body;
     try {
         const result = await pool.query(
-            'INSERT INTO folha_pagamento (usuario_id, mes_referencia, ano_referencia, salario_base, subsidios, desconto_inss, desconto_irps, salario_liquido, data_pagamento, estado) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, $10) RETURNING *',
-            [usuario_id, mes_referencia, ano_referencia, salario_base, subsidios, desconto_inss, desconto_irps, salario_liquido, data_pagamento, 'pago']
+            'INSERT INTO folha_pagamento (usuario_id, projeto_id, mes_referencia, ano_referencia, salario_base, subsidios, desconto_inss, desconto_irps, salario_liquido, data_pagamento, estado) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, $10, $11) RETURNING *',
+            [usuario_id, projeto_id, mes_referencia, ano_referencia, salario_base, subsidios, desconto_inss, desconto_irps, salario_liquido, data_pagamento, 'pago']
         );
 
-        // Registrar como despesa automaticamente
+        // Registrar como despesa AUTOMATICAMENTE vinculada ao projeto
         await pool.query(
-            'INSERT INTO despesa (projeto_id, categoria, fornecedor, valor, moeda, estado, data) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-            [null, 'Salários', 'Colaborador ID: ' + usuario_id, salario_base + subsidios, 'MZN', 'aprovado', data_pagamento]
+            'INSERT INTO despesa (projeto_id, categoria, fornecedor, valor, moeda, estado, data_despesa) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [projeto_id, 'Salários', 'Colaborador ID: ' + usuario_id, Number(salario_base) + Number(subsidios), 'MZN', 'aprovado', data_pagamento]
         );
 
         res.status(201).json(result.rows[0]);

@@ -3,16 +3,13 @@ import axios from './api';
 
 function Despesas({ user }) {
     const [despesas, setDespesas] = useState([]);
-    const [form, setForm] = useState({ projeto_id: '', centro_custo_id: '', categoria: '', fornecedor: '', valor: '', moeda: 'MZN', metodo_pagamento: '', comprovativo_url: '', responsavel_id: '', estado: 'submetido' });
+    const [projetos, setProjetos] = useState([]);
+    const [atividades, setAtividades] = useState([]);
+    const [form, setForm] = useState({ projeto_id: '', atividade_id: '', justificativa: '', centro_custo_id: '', categoria: '', fornecedor: '', valor: '', moeda: 'MZN', metodo_pagamento: '', comprovativo_url: '', responsavel_id: '', estado: 'submetido' });
     const [msg, setMsg] = useState('');
     const [loading, setLoading] = useState(true);
-
-    const fetchDespesas = () => {
-        axios.get('/api/despesa').then(res => setDespesas(res.data));
-    };
-
-    const [projetos, setProjetos] = useState([]);
     const [stats, setStats] = useState({ total_orcamento: 0, total_gasto: 0 });
+    const [parecerForm, setParecerForm] = useState({ id: null, texto: '', acao: '' });
 
     const fetchData = async () => {
         try {
@@ -38,6 +35,17 @@ function Despesas({ user }) {
         fetchData();
     }, []);
 
+    // Buscar atividades quando o projeto muda
+    useEffect(() => {
+        if (form.projeto_id) {
+            axios.get(`/api/atividade?projeto_id=${form.projeto_id}`)
+                .then(res => setAtividades(res.data))
+                .catch(err => console.error(err));
+        } else {
+            setAtividades([]);
+        }
+    }, [form.projeto_id]);
+
     const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
 
     const handleSubmit = async e => {
@@ -45,53 +53,70 @@ function Despesas({ user }) {
         try {
             const payload = { ...form, responsavel_id: user?.id, data_despesa: new Date().toISOString().split('T')[0] };
             await axios.post('/api/despesa', payload);
-            setMsg('✅ Despesa submetida para aprovação!');
+            setMsg('✅ Despesa submetida com sucesso!');
             fetchData();
-            setForm({ projeto_id: '', centro_custo_id: '', categoria: '', fornecedor: '', valor: '', moeda: 'MZN', metodo_pagamento: '', comprovativo_url: '', responsavel_id: '', estado: 'submetido' });
+            setForm({ projeto_id: '', atividade_id: '', justificativa: '', centro_custo_id: '', categoria: '', fornecedor: '', valor: '', moeda: 'MZN', metodo_pagamento: '', comprovativo_url: '', responsavel_id: '', estado: 'submetido' });
         } catch {
-            setMsg('❌ Erro ao submeter despesa.');
+            setMsg('❌ Erro: Verifique os campos obrigatórios (Atividade/Justificativa).');
         }
     };
 
-    const handleAprovar = async (id, acao) => {
+    const handleGovernançaAction = async (id, acao) => {
+        const url = acao === 'aprovar' ? `/api/despesa/${id}/aprovar` : `/api/despesa/${id}/reconsiderar`;
+        const payload = acao === 'aprovar' ? { parecer: parecerForm.texto } : { acao, parecer: parecerForm.texto };
+
         try {
-            await axios.post(`/api/despesa/${id}/${acao}`);
-            setMsg(`✅ Despesa ${acao === 'aprovar' ? 'aprovada' : 'rejeitada'} com sucesso!`);
+            await axios.post(url, payload);
+            setMsg(`✅ Despesa atualizada: ${acao.toUpperCase()}`);
+            setParecerForm({ id: null, texto: '', acao: '' });
             fetchData();
         } catch {
-            setMsg('⚠️ Ação não permitida para o seu perfil.');
+            setMsg('⚠️ Erro na governação. Verifique permissões.');
         }
     };
 
     if (loading) return <div className="card">Consolidando Aplicações...</div>;
 
+    const canApprove = ['Administrador', 'Financeiro', 'Diretor'].includes(user?.perfil);
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '2rem' }}>
                 <div className="card">
-                    <h2>Registrar Saída (Despesa)</h2>
-                    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <label>Projeto Auditado:</label>
-                        <select name="projeto_id" value={form.projeto_id} onChange={handleChange} required>
-                            <option value="">Selecione o Projeto...</option>
-                            {projetos.map(p => (
-                                <option key={p.id} value={p.id}>{p.nome}</option>
-                            ))}
-                        </select>
+                    <h2>Requisição de Fundos (Despesa)</h2>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>Toda despesa deve estar vinculada a uma atividade do plano operacional.</p>
 
-                        <label>Fornecedor / Destinatário:</label>
-                        <input name="fornecedor" placeholder="Ex: Papelaria, Empresa de Serviços..." value={form.fornecedor} onChange={handleChange} required />
+                    <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <label>Projeto:</label>
+                            <select name="projeto_id" value={form.projeto_id} onChange={handleChange} required>
+                                <option value="">Selecione...</option>
+                                {projetos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                            </select>
+                        </div>
 
-                        <label>Categoria da Rubrica:</label>
-                        <input name="categoria" placeholder="Ex: Material, RH, Aluguer..." value={form.categoria} onChange={handleChange} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <label>Atividade do Plano:</label>
+                            <select name="atividade_id" value={form.atividade_id} onChange={handleChange} required>
+                                <option value="">Selecione a atividade...</option>
+                                {atividades.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                            </select>
+                        </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                            <div>
-                                <label>Valor:</label>
-                                <input name="valor" type="number" value={form.valor} onChange={handleChange} required />
-                            </div>
-                            <div>
-                                <label>Moeda:</label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <label>Fornecedor:</label>
+                            <input name="fornecedor" placeholder="Ex: Papelaria, Empresa..." value={form.fornecedor} onChange={handleChange} required />
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <label>Categoria:</label>
+                            <input name="categoria" placeholder="Ex: RH, Operacional..." value={form.categoria} onChange={handleChange} />
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <label>Valor:</label>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <input name="valor" type="number" style={{ flex: 1 }} value={form.valor} onChange={handleChange} required />
                                 <select name="moeda" value={form.moeda} onChange={handleChange}>
                                     <option value="MZN">MZN</option>
                                     <option value="USD">USD</option>
@@ -99,68 +124,107 @@ function Despesas({ user }) {
                             </div>
                         </div>
 
-                        <button type="submit" className="nav-button" style={{ background: 'var(--primary)', color: 'white', marginTop: '1rem' }}>Submeter para Revisão</button>
-                        {msg && <p style={{ fontSize: '0.9rem', textAlign: 'center' }}>{msg}</p>}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: 'span 2' }}>
+                            <label>Justificativa da Despesa (Auditoria):</label>
+                            <textarea name="justificativa" placeholder="Descreva o propósito desta despesa no âmbito da atividade..." rows="3" style={{ padding: '0.8rem', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border)' }} value={form.justificativa} onChange={handleChange} required />
+                        </div>
+
+                        <button type="submit" className="nav-button" style={{ gridColumn: 'span 2', background: 'var(--primary)', color: 'white', marginTop: '1rem' }}>Submeter Requisição</button>
                     </form>
+                    {msg && <p style={{ fontSize: '0.9rem', textAlign: 'center', marginTop: '1rem', color: msg.includes('✅') ? 'var(--accent)' : 'var(--danger)' }}>{msg}</p>}
                 </div>
 
                 <div className="card" style={{ background: 'rgba(244, 63, 94, 0.02)', border: '1px solid var(--danger)' }}>
-                    <h3>Transparência de Execução</h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Controlo de gastos reais versus orçamento planeado das ONGs.</p>
-                    <div style={{ marginTop: '2rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <h3>Barômetro de Execução</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Controlo de compliance: Orçamento vs Gastos Aprovados.</p>
+                    <div style={{ marginTop: '2.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '1.2rem', fontWeight: 'bold' }}>
                             <span>Execução Global</span>
-                            <span>{((stats.total_gasto / (stats.total_orcamento || 1)) * 100).toFixed(1)}%</span>
+                            <span style={{ color: 'var(--danger)' }}>{((stats.total_gasto / (stats.total_orcamento || 1)) * 100).toFixed(1)}%</span>
                         </div>
-                        <div style={{ width: '100%', height: '12px', background: '#1e293b', borderRadius: '6px' }}>
-                            <div style={{ width: `${Math.min((stats.total_gasto / (stats.total_orcamento || 1)) * 100, 100)}%`, height: '100%', background: 'var(--danger)', borderRadius: '6px' }}></div>
+                        <div style={{ width: '100%', height: '15px', background: '#1e293b', borderRadius: '8px' }}>
+                            <div style={{ width: `${Math.min((stats.total_gasto / (stats.total_orcamento || 1)) * 100, 100)}%`, height: '100%', background: 'var(--danger)', borderRadius: '8px' }}></div>
                         </div>
-                        <p style={{ fontSize: '0.8rem', marginTop: '15px' }}>Total Gasto: <strong>{stats.total_gasto.toLocaleString()} MT</strong></p>
-                        <p style={{ fontSize: '0.8rem' }}>Orçamento Disponível: <strong>{(stats.total_orcamento - stats.total_gasto).toLocaleString()} MT</strong></p>
+                        <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                                <span style={{ color: 'var(--text-muted)' }}>Total Gasto:</span>
+                                <strong>{stats.total_gasto.toLocaleString()} MT</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                                <span style={{ color: 'var(--text-muted)' }}>Orçamento Disponível:</span>
+                                <strong style={{ color: 'var(--accent)' }}>{(stats.total_orcamento - stats.total_gasto).toLocaleString()} MT</strong>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div className="card">
-                <h3>Trilho de Auditoria de Despesas</h3>
-                <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                <h3>Trilho de Auditoria de Despesas & Governação</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
                     {despesas.map(d => (
                         <div key={d.id} style={{
-                            padding: '1.2rem',
-                            borderBottom: '1px solid var(--border)',
+                            padding: '1.5rem',
+                            borderRadius: '12px',
+                            background: 'rgba(255,255,255,0.02)',
+                            border: '1px solid var(--border)',
                             display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            background: d.estado === 'rejeitado' ? 'rgba(244, 63, 94, 0.05)' : 'transparent'
+                            flexDirection: 'column',
+                            gap: '1rem'
                         }}>
-                            <div style={{ flex: 1 }}>
-                                <strong style={{ fontSize: '1.1rem' }}>{d.fornecedor}</strong>
-                                <br />
-                                <small style={{ color: 'var(--primary)' }}>{d.categoria || 'Geral'}</small>
-                                <br />
-                                <small style={{ color: 'var(--text-muted)' }}>Projeto: <strong>{d.projeto_nome || 'Auditando...'}</strong></small>
-                                <br />
-                                <small style={{ color: 'var(--text-muted)' }}>Responsável: {d.responsavel_nome || 'N/D'}</small>
-                            </div>
-                            <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <div>
+                                    <h4 style={{ margin: 0 }}>{d.fornecedor} <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--primary)' }}>({d.categoria || 'Geral'})</span></h4>
+                                    <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '5px' }}>
+                                        Projeto: <strong>{d.projeto_nome}</strong> | Responsável: {d.responsavel_nome}
+                                    </small>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--accent)', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '4px', marginTop: '8px', display: 'inline-block' }}>
+                                        Atividade: {d.atividade_nome || 'Ateção: Sem Atividade Vinc.'}
+                                    </span>
+                                </div>
                                 <div style={{ textAlign: 'right' }}>
-                                    <span style={{ fontSize: '1.2rem', fontWeight: '800', display: 'block' }}>{Number(d.valor).toLocaleString()} {d.moeda}</span>
+                                    <span style={{ fontSize: '1.3rem', fontWeight: '800', display: 'block' }}>{Number(d.valor).toLocaleString()} {d.moeda}</span>
                                     <span style={{
-                                        fontSize: '0.65rem',
-                                        padding: '4px 8px',
-                                        borderRadius: '4px',
-                                        background: d.estado === 'aprovado' ? 'var(--accent)' : d.estado === 'rejeitado' ? 'var(--danger)' : 'var(--primary)',
-                                        color: 'white'
+                                        fontSize: '0.7rem',
+                                        padding: '4px 10px',
+                                        borderRadius: '50px',
+                                        background: d.estado === 'aprovado' ? 'var(--accent)' : d.estado === 'revisar' ? '#f59e0b' : d.estado === 'rejeitado' ? 'var(--danger)' : 'var(--primary)',
+                                        color: 'white',
+                                        marginTop: '5px',
+                                        display: 'inline-block'
                                     }}>{d.estado.toUpperCase()}</span>
                                 </div>
+                            </div>
 
-                                {user?.perfil === 'Administrador' && d.estado === 'submetido' && (
-                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <button onClick={() => handleAprovar(d.id, 'aprovar')} className="nav-button" style={{ background: 'var(--accent)', padding: '5px 15px' }}>Aprovar</button>
-                                        <button onClick={() => handleAprovar(d.id, 'rejeitar')} className="nav-button" style={{ background: 'var(--danger)', padding: '5px 15px' }}>Rejeitar</button>
+                            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', fontSize: '0.9rem' }}>
+                                <small style={{ color: 'var(--text-muted)', fontWeight: 'bold' }}>JUSTIFICATIVA DE AUDITORIA:</small>
+                                <p style={{ margin: '5px 0' }}>{d.justificativa || 'Sem justificativa fornecida.'}</p>
+
+                                {d.parecer_coordenador && (
+                                    <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '10px' }}>
+                                        <small style={{ color: d.estado === 'aprovado' ? 'var(--accent)' : 'var(--danger)', fontWeight: 'bold' }}>PARECER DA COORDENAÇÃO:</small>
+                                        <p style={{ margin: '5px 0', fontStyle: 'italic' }}>{d.parecer_coordenador}</p>
                                     </div>
                                 )}
                             </div>
+
+                            {canApprove && (d.estado === 'submetido' || d.estado === 'revisar') && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '0.5rem' }}>
+                                    {parecerForm.id === d.id ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                                            <textarea placeholder="Escreva o parecer para o gestor..." value={parecerForm.texto} onChange={e => setParecerForm({ ...parecerForm, texto: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', background: 'rgba(255,255,255,0.1)', color: 'white' }} />
+                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                <button onClick={() => handleGovernançaAction(d.id, 'aprovar')} className="nav-button" style={{ background: 'var(--accent)', flex: 1 }}>Confirmar Aprovação</button>
+                                                <button onClick={() => handleGovernançaAction(d.id, 'revisar')} className="nav-button" style={{ background: '#f59e0b', flex: 1 }}>Mandar Refazer</button>
+                                                <button onClick={() => handleGovernançaAction(d.id, 'rejeitado')} className="nav-button" style={{ background: 'var(--danger)', flex: 1 }}>Rejeitar Totalmente</button>
+                                                <button onClick={() => setParecerForm({ id: null, texto: '', acao: '' })} className="nav-button" style={{ background: 'gray' }}>Cancelar</button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <button onClick={() => setParecerForm({ id: d.id, texto: '', acao: '' })} className="nav-button" style={{ background: 'var(--accent)' }}>Analisar e Dar Parecer</button>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
