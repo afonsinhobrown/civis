@@ -83,7 +83,13 @@ router.post('/receita', verificarToken, permitirPerfis('Administrador', 'Finance
 
 router.get('/receita', verificarToken, async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM receita');
+        const result = await pool.query(`
+            SELECT r.*, p.nome as projeto_nome, f.nome as financiador_nome 
+            FROM receita r 
+            LEFT JOIN projeto p ON r.projeto_id = p.id 
+            LEFT JOIN financiador f ON r.financiador_id = f.id
+            ORDER BY r.data DESC
+        `);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -106,7 +112,14 @@ router.post('/despesa', verificarToken, permitirPerfis('Administrador', 'Finance
 
 router.get('/despesa', verificarToken, async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM despesa');
+        const result = await pool.query(`
+            SELECT d.*, p.nome as projeto_nome, u.nome as responsavel_nome, cc.nome as centro_custo_nome
+            FROM despesa d
+            LEFT JOIN projeto p ON d.projeto_id = p.id
+            LEFT JOIN usuario u ON d.responsavel_id = u.id
+            LEFT JOIN centro_custo cc ON d.centro_custo_id = cc.id
+            ORDER BY d.data_despesa DESC
+        `);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -129,7 +142,12 @@ router.post('/beneficiario', verificarToken, permitirPerfis('Administrador', 'Ge
 
 router.get('/beneficiario', verificarToken, async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM beneficiario');
+        const result = await pool.query(`
+            SELECT b.*, p.nome as projeto_nome 
+            FROM beneficiario b 
+            LEFT JOIN projeto p ON b.projeto_id = p.id
+            ORDER BY b.id DESC
+        `);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
