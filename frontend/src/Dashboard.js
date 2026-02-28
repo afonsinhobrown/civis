@@ -9,33 +9,46 @@ function Dashboard() {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const [rRec, rDes, rPat] = await Promise.all([
+                const [rRec, rDes, rPat, rBen] = await Promise.all([
                     axios.get('/api/receita'),
                     axios.get('/api/despesa'),
-                    axios.get('/api/patrimonio')
+                    axios.get('/api/patrimonio'),
+                    axios.get('/api/beneficiario')
                 ]);
+
                 const totalRec = rRec.data.reduce((acc, r) => acc + Number(r.valor), 0);
                 const totalDes = rDes.data.reduce((acc, d) => acc + Number(d.valor), 0);
+                const saldoAtual = totalRec - totalDes;
 
-                // Simulação de Impacto Social (ex: cada 5000 MT ajuda 1 família)
-                const familiasImpactadas = Math.floor(totalDes / 5000);
+                // Cálculo Real de Impacto (Número de beneficiários no banco)
+                const familiasReais = rBen.data.length;
+
+                // Cálculo de Burn Rate (Meses restantes baseados na média de gastos)
+                // Se não houver despesas, assumimos 12 meses como padrão de segurança
+                const mediaGastosMensal = totalDes > 0 ? totalDes / 1 : 0;
+                const mesesRestantes = (mediaGastosMensal > 0 && saldoAtual > 0)
+                    ? (saldoAtual / mediaGastosMensal).toFixed(1)
+                    : "∞";
 
                 setStats({
                     receitas: totalRec,
                     despesas: totalDes,
-                    saldo: totalRec - totalDes,
+                    saldo: saldoAtual,
                     execucao: totalRec > 0 ? (totalDes / totalRec) * 100 : 0,
                     numAtivos: rPat.data.length,
-                    impacto: familiasImpactadas
+                    impacto: familiasReais,
+                    mesesOperacao: mesesRestantes
                 });
 
-                // Geração de Insight AI (Simulação)
-                if (totalDes > totalRec * 0.8) {
-                    setInsight("⚠️ Alerta de Sustentabilidade: O orçamento está acima de 80%. Recomenda-se procurar novos financiadores para o próximo trimestre.");
-                } else if (familiasImpactadas > 0) {
-                    setInsight("🚀 Performance Excelente: Graças à execução eficiente, o custo por família impactada está 12% abaixo da meta do doador.");
+                // Geração de Insight REAL
+                if (saldoAtual < 0) {
+                    setInsight("⚠️ Alerta Financeiro: O saldo em caixa está negativo. Verifique as receitas pendentes imediatamente.");
+                } else if (totalRec === 0) {
+                    setInsight("💡 Dica de Início: Registe a sua primeira entrada de fundos (Receita) para começar o monitoramento financeiro.");
+                } else if (familiasReais === 0) {
+                    setInsight("📌 Próximo Passo: Registe os beneficiários dos seus projetos para visualizar o impacto social real.");
                 } else {
-                    setInsight("💡 Dica de Governança: Inicie o registo de saídas para que o sistema possa calcular o seu 'Impact Score'.");
+                    setInsight("🚀 Sistema Ativo: Monitorando " + familiasReais + " beneficiários com saldo operacional positivo.");
                 }
 
             } catch (err) {
@@ -57,7 +70,7 @@ function Dashboard() {
                     <small style={{ opacity: 0.8 }}>Saldo em Caixa (Cash-flow)</small>
                     <h2 style={{ fontSize: '2.5rem', fontWeight: '900' }}>{stats.saldo.toLocaleString()} <small style={{ fontSize: '1rem' }}>MT</small></h2>
                     <div style={{ marginTop: '1rem', padding: '10px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '0.85rem' }}>
-                        Potencial para operar por mais <strong>4.2 meses</strong> sem novas entradas.
+                        Potencial para operar por mais <strong>{stats.mesesOperacao} meses</strong> sem novas entradas.
                     </div>
                 </div>
 
