@@ -1,0 +1,162 @@
+openapi: 3.0.0
+info:
+  title: ERP Social API
+  version: 1.0.0
+tags:
+  - name: Autenticação
+  - name: ONG
+  - name: Usuário
+  - name: Projeto
+  - name: Financiador
+  - name: Receita
+  - name: Despesa
+  - name: Beneficiário
+  - name: Log de Auditoria
+paths:
+  /api/login:
+    post:
+      tags: [Autenticação]
+      summary: Login do usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                senha:
+                  type: string
+      responses:
+        '200':
+          description: Token JWT e dados do usuário
+  /api/ong:
+    get:
+      tags: [ONG]
+      summary: Listar ONGs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de ONGs
+    post:
+      tags: [ONG]
+      summary: Cadastrar ONG
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Ong'
+      responses:
+        '201':
+          description: ONG criada
+  /api/usuario:
+    get:
+      tags: [Usuário]
+      summary: Listar usuários
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de usuários
+    post:
+      tags: [Usuário]
+      summary: Cadastrar usuário
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Usuario'
+      responses:
+        '201':
+          description: Usuário criado
+  /api/projeto:
+    get:
+      tags: [Projeto]
+      summary: Listar projetos
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de projetos
+    post:
+      tags: [Projeto]
+      summary: Cadastrar projeto
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Projeto'
+      responses:
+        '201':
+          description: Projeto criado
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Ong:
+      type: object
+      properties:
+        nome:
+          type: string
+        nuit_nif:
+          type: string
+        endereco:
+          type: string
+        contactos:
+          type: string
+        pais:
+          type: string
+        estatutos_url:
+          type: string
+        certificado_url:
+          type: string
+    Usuario:
+      type: object
+      properties:
+        nome:
+          type: string
+        email:
+          type: string
+        senha_hash:
+          type: string
+        perfil:
+          type: string
+        ativo:
+          type: boolean
+        ong_id:
+          type: integer
+    Projeto:
+      type: object
+      properties:
+        nome:
+          type: string
+        codigo_interno:
+          type: string
+        orçamento_total:
+          type: number
+        data_inicio:
+          type: string
+          format: date
+        data_fim:
+          type: string
+          format: date
+        objetivos:
+          type: string
+        estado:
+          type: string
+        ong_id:
+          type: integer
