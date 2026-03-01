@@ -37,6 +37,7 @@ router.get('/relatorio/:tipo/pdf', verificarToken, async (req, res) => {
 // Login
 router.post('/login', async (req, res) => {
     const { email, senha } = req.body;
+
     try {
         const result = await autenticar(email, senha);
         if (!result) return res.status(401).json({ error: 'Credenciais inválidas' });
