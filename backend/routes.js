@@ -11,6 +11,7 @@ router.post('/despesa/:id/aprovar', verificarToken, permitirPerfis('Administrado
         const result = await pool.query('UPDATE despesa SET estado = $1, parecer_coordenador = $2 WHERE id = $3 RETURNING *', ['aprovado', parecer, req.params.id]);
         res.json(result.rows[0]);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -22,6 +23,7 @@ router.post('/despesa/:id/reconsiderar', verificarToken, permitirPerfis('Adminis
         const result = await pool.query('UPDATE despesa SET estado = $1, parecer_coordenador = $2 WHERE id = $3 RETURNING *', [acao, parecer, req.params.id]);
         res.json(result.rows[0]);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -43,6 +45,7 @@ router.post('/login', async (req, res) => {
         if (!result) return res.status(401).json({ error: 'Credenciais inválidas' });
         res.json(result);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -57,6 +60,7 @@ router.post('/financiador', verificarToken, permitirPerfis('Administrador', 'Fin
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -66,6 +70,7 @@ router.get('/financiador', verificarToken, async (req, res) => {
         const result = await pool.query('SELECT * FROM financiador');
         res.json(result.rows);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -80,6 +85,7 @@ router.post('/receita', verificarToken, permitirPerfis('Administrador', 'Finance
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -103,6 +109,7 @@ router.get('/receita', verificarToken, async (req, res) => {
         const result = await pool.query(sql, params);
         res.json(result.rows);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -116,6 +123,7 @@ router.post('/despesa', verificarToken, permitirPerfis('Administrador', 'Finance
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -141,6 +149,7 @@ router.get('/despesa', verificarToken, async (req, res) => {
         const result = await pool.query(sql, params);
         res.json(result.rows);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -155,6 +164,7 @@ router.post('/beneficiario', verificarToken, permitirPerfis('Administrador', 'Ge
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -169,6 +179,7 @@ router.get('/beneficiario', verificarToken, async (req, res) => {
         `);
         res.json(result.rows);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -183,6 +194,7 @@ router.post('/log_auditoria', verificarToken, permitirPerfis('Administrador', 'A
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -192,6 +204,7 @@ router.get('/log_auditoria', verificarToken, permitirPerfis('Administrador', 'Au
         const result = await pool.query('SELECT * FROM log_auditoria');
         res.json(result.rows);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -206,6 +219,7 @@ router.post('/ong', verificarToken, permitirPerfis('Administrador'), async (req,
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -214,6 +228,7 @@ router.get('/ong', verificarToken, permitirPerfis('Administrador', 'Diretor', 'A
         const result = await pool.query('SELECT * FROM ong');
         res.json(result.rows);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -305,6 +320,7 @@ router.post('/projeto', verificarToken, permitirPerfis('Administrador', 'Gestor 
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -326,6 +342,7 @@ router.get('/projeto', verificarToken, async (req, res) => {
         const result = await pool.query(sql, params);
         res.json(result.rows);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -340,6 +357,7 @@ router.post('/atividade', verificarToken, permitirPerfis('Administrador', 'Gesto
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -356,6 +374,7 @@ router.get('/atividade', verificarToken, async (req, res) => {
         const result = await pool.query(sql, params);
         res.json(result.rows);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -371,6 +390,7 @@ router.get('/folha_pagamento', verificarToken, permitirPerfis('Administrador', '
         `);
         res.json(result.rows);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -391,6 +411,7 @@ router.post('/folha_pagamento', verificarToken, permitirPerfis('Administrador', 
 
         res.status(201).json(result.rows[0]);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -401,6 +422,7 @@ router.get('/configuracao', verificarToken, async (req, res) => {
         const result = await pool.query('SELECT * FROM configuracao');
         res.json(result.rows);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -414,6 +436,7 @@ router.post('/configuracao', verificarToken, permitirPerfis('Administrador'), as
         );
         res.json(result.rows[0]);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -424,6 +447,7 @@ router.get('/patrimonio', verificarToken, async (req, res) => {
         const result = await pool.query('SELECT * FROM patrimonio');
         res.json(result.rows);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -437,6 +461,7 @@ router.post('/patrimonio', verificarToken, permitirPerfis('Administrador', 'Fina
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -447,6 +472,7 @@ router.get('/processo_inspecao', verificarToken, async (req, res) => {
         const result = await pool.query('SELECT * FROM processo_inspecao');
         res.json(result.rows);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -460,6 +486,7 @@ router.post('/processo_inspecao', verificarToken, permitirPerfis('Administrador'
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
+        console.error('ERRO NA ROTA:', err);
         res.status(500).json({ error: err.message });
     }
 });

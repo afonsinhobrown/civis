@@ -57,12 +57,16 @@ const runMigrations = async () => {
     try {
         console.log('--- Verificando Estrutura do BD ---');
         await pool.query(`
-            -- TABELAS PRINCIPAIS
+            -- TABELAS PRINCIPAIS (ESQUEMA COMPLETO)
             CREATE TABLE IF NOT EXISTS ong (
                 id SERIAL PRIMARY KEY,
                 nome VARCHAR(255) NOT NULL,
                 nuit_nif VARCHAR(50),
-                pais VARCHAR(50) DEFAULT 'Moçambique'
+                endereco VARCHAR(255),
+                contactos VARCHAR(100),
+                pais VARCHAR(50) DEFAULT 'Moçambique',
+                estatutos_url VARCHAR(255),
+                certificado_url VARCHAR(255)
             );
             CREATE TABLE IF NOT EXISTS usuario (
                 id SERIAL PRIMARY KEY,
@@ -74,6 +78,7 @@ const runMigrations = async () => {
                 ong_id INTEGER,
                 cargo VARCHAR(100),
                 bi_nuit VARCHAR(50),
+                data_contratacao DATE,
                 salario_base DECIMAL(15,2)
             );
             CREATE TABLE IF NOT EXISTS financiador (
@@ -87,6 +92,10 @@ const runMigrations = async () => {
                 nome VARCHAR(255) NOT NULL,
                 codigo_interno VARCHAR(50) UNIQUE,
                 orcamento_total NUMERIC(15,2),
+                data_inicio DATE,
+                data_fim DATE,
+                objetivos TEXT,
+                estado VARCHAR(20),
                 ong_id INTEGER
             );
             CREATE TABLE IF NOT EXISTS centro_custo (
@@ -99,6 +108,8 @@ const runMigrations = async () => {
                 projeto_id INTEGER,
                 nome VARCHAR(255) NOT NULL,
                 orcamento_previsto NUMERIC(15,2),
+                data_inicio DATE,
+                data_fim DATE,
                 status VARCHAR(20) DEFAULT 'planeado',
                 relatorio_progresso TEXT,
                 status_execucao INTEGER DEFAULT 0,
@@ -108,10 +119,12 @@ const runMigrations = async () => {
                 id SERIAL PRIMARY KEY,
                 projeto_id INTEGER,
                 financiador_id INTEGER,
-                valor NUMERIC(15,2),
-                data DATE DEFAULT CURRENT_DATE,
                 tipo_fundo VARCHAR(50),
-                moeda VARCHAR(10) DEFAULT 'MZN'
+                data DATE DEFAULT CURRENT_DATE,
+                valor NUMERIC(15,2),
+                moeda VARCHAR(10) DEFAULT 'MZN',
+                taxa_cambio NUMERIC(18,6),
+                comprovativo_url VARCHAR(255)
             );
             CREATE TABLE IF NOT EXISTS despesa (
                 id SERIAL PRIMARY KEY,
@@ -120,27 +133,35 @@ const runMigrations = async () => {
                 centro_custo_id INTEGER,
                 categoria VARCHAR(100),
                 fornecedor VARCHAR(100),
-                justificativa TEXT,
                 valor NUMERIC(15,2),
-                estado VARCHAR(20) DEFAULT 'submetido',
-                responsavel_id INTEGER,
-                data_despesa DATE DEFAULT CURRENT_DATE,
                 moeda VARCHAR(10) DEFAULT 'MZN',
+                metodo_pagamento VARCHAR(50),
+                comprovativo_url VARCHAR(255),
+                responsavel_id INTEGER,
+                estado VARCHAR(20) DEFAULT 'submetido',
+                data_despesa DATE DEFAULT CURRENT_DATE,
+                justificativa TEXT,
                 parecer_coordenador TEXT
             );
             CREATE TABLE IF NOT EXISTS beneficiario (
                 id SERIAL PRIMARY KEY,
                 projeto_id INTEGER,
                 tipo VARCHAR(20),
+                numero_identificacao VARCHAR(50),
+                provincia VARCHAR(50),
                 distrito VARCHAR(50),
-                numero_identificacao VARCHAR(50)
+                historico TEXT,
+                status VARCHAR(20)
             );
             CREATE TABLE IF NOT EXISTS patrimonio (
                 id SERIAL PRIMARY KEY,
                 nome VARCHAR(255) NOT NULL,
                 tipo VARCHAR(100),
                 codigo_ativo VARCHAR(50),
+                data_aquisicao DATE,
                 valor_compra NUMERIC(15,2),
+                estado_conservacao VARCHAR(50),
+                localizacao VARCHAR(100),
                 ong_id INTEGER
             );
             CREATE TABLE IF NOT EXISTS folha_pagamento (
@@ -151,6 +172,8 @@ const runMigrations = async () => {
                 ano_referencia INTEGER,
                 salario_base NUMERIC(15,2),
                 subsidios NUMERIC(15,2),
+                desconto_inss NUMERIC(15,2),
+                desconto_irps NUMERIC(15,2),
                 salario_liquido NUMERIC(15,2),
                 data_pagamento DATE,
                 estado VARCHAR(20)
@@ -158,16 +181,16 @@ const runMigrations = async () => {
             CREATE TABLE IF NOT EXISTS configuracao (
                 id SERIAL PRIMARY KEY,
                 chave VARCHAR(100) UNIQUE,
-                valor TEXT
+                valor TEXT,
+                descricao TEXT
             );
-
-            -- GOVERNANÇA E CAIXA
             CREATE TABLE IF NOT EXISTS contas_caixa (
                 id SERIAL PRIMARY KEY,
                 nome VARCHAR(100) NOT NULL,
                 tipo VARCHAR(20) DEFAULT 'Banco',
                 saldo_atual DECIMAL(15,2) DEFAULT 0,
-                ong_id INTEGER DEFAULT 1
+                ong_id INTEGER DEFAULT 1,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS transferencias (
                 id SERIAL PRIMARY KEY,
@@ -182,7 +205,8 @@ const runMigrations = async () => {
                 id SERIAL PRIMARY KEY,
                 projeto_id INTEGER,
                 usuario_id INTEGER,
-                funcao VARCHAR(100)
+                funcao VARCHAR(100),
+                atribuido_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
 
