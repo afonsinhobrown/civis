@@ -57,14 +57,12 @@ const runMigrations = async () => {
     try {
         console.log('--- Verificando Estrutura do BD ---');
         await pool.query(`
-            -- TABELAS BASE SE NÃO EXISTIREM
+            -- TABELAS PRINCIPAIS
             CREATE TABLE IF NOT EXISTS ong (
                 id SERIAL PRIMARY KEY,
                 nome VARCHAR(255) NOT NULL,
-                nuit_nif VARCHAR(50) NOT NULL,
-                endereco VARCHAR(255),
-                contactos VARCHAR(100),
-                pais VARCHAR(50)
+                nuit_nif VARCHAR(50),
+                pais VARCHAR(50) DEFAULT 'Moçambique'
             );
             CREATE TABLE IF NOT EXISTS usuario (
                 id SERIAL PRIMARY KEY,
@@ -73,88 +71,119 @@ const runMigrations = async () => {
                 senha_hash VARCHAR(255) NOT NULL,
                 perfil VARCHAR(50) NOT NULL,
                 ativo BOOLEAN DEFAULT TRUE,
-                ong_id INTEGER REFERENCES ong(id)
+                ong_id INTEGER,
+                cargo VARCHAR(100),
+                bi_nuit VARCHAR(50),
+                salario_base DECIMAL(15,2)
             );
             CREATE TABLE IF NOT EXISTS financiador (
                 id SERIAL PRIMARY KEY,
                 nome VARCHAR(100) NOT NULL,
                 contato VARCHAR(100),
-                ong_id INTEGER REFERENCES ong(id)
+                ong_id INTEGER
             );
             CREATE TABLE IF NOT EXISTS projeto (
                 id SERIAL PRIMARY KEY,
                 nome VARCHAR(255) NOT NULL,
                 codigo_interno VARCHAR(50) UNIQUE,
                 orcamento_total NUMERIC(15,2),
-                ong_id INTEGER REFERENCES ong(id)
+                ong_id INTEGER
+            );
+            CREATE TABLE IF NOT EXISTS centro_custo (
+                id SERIAL PRIMARY KEY,
+                nome VARCHAR(100) NOT NULL,
+                projeto_id INTEGER
             );
             CREATE TABLE IF NOT EXISTS atividade (
                 id SERIAL PRIMARY KEY,
-                projeto_id INTEGER REFERENCES projeto(id),
+                projeto_id INTEGER,
                 nome VARCHAR(255) NOT NULL,
                 orcamento_previsto NUMERIC(15,2),
-                status VARCHAR(20) DEFAULT 'planeado'
+                status VARCHAR(20) DEFAULT 'planeado',
+                relatorio_progresso TEXT,
+                status_execucao INTEGER DEFAULT 0,
+                data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS receita (
                 id SERIAL PRIMARY KEY,
-                projeto_id INTEGER REFERENCES projeto(id),
-                financiador_id INTEGER REFERENCES financiador(id),
+                projeto_id INTEGER,
+                financiador_id INTEGER,
                 valor NUMERIC(15,2),
-                data DATE DEFAULT CURRENT_DATE
+                data DATE DEFAULT CURRENT_DATE,
+                tipo_fundo VARCHAR(50),
+                moeda VARCHAR(10) DEFAULT 'MZN'
             );
             CREATE TABLE IF NOT EXISTS despesa (
                 id SERIAL PRIMARY KEY,
-                projeto_id INTEGER REFERENCES projeto(id),
-                atividade_id INTEGER REFERENCES atividade(id),
+                projeto_id INTEGER,
+                atividade_id INTEGER,
+                centro_custo_id INTEGER,
                 categoria VARCHAR(100),
+                fornecedor VARCHAR(100),
+                justificativa TEXT,
                 valor NUMERIC(15,2),
                 estado VARCHAR(20) DEFAULT 'submetido',
-                responsavel_id INTEGER REFERENCES usuario(id),
-                data_despesa DATE DEFAULT CURRENT_DATE
+                responsavel_id INTEGER,
+                data_despesa DATE DEFAULT CURRENT_DATE,
+                moeda VARCHAR(10) DEFAULT 'MZN',
+                parecer_coordenador TEXT
             );
             CREATE TABLE IF NOT EXISTS beneficiario (
                 id SERIAL PRIMARY KEY,
-                projeto_id INTEGER REFERENCES projeto(id),
+                projeto_id INTEGER,
                 tipo VARCHAR(20),
-                distrito VARCHAR(50)
+                distrito VARCHAR(50),
+                numero_identificacao VARCHAR(50)
+            );
+            CREATE TABLE IF NOT EXISTS patrimonio (
+                id SERIAL PRIMARY KEY,
+                nome VARCHAR(255) NOT NULL,
+                tipo VARCHAR(100),
+                codigo_ativo VARCHAR(50),
+                valor_compra NUMERIC(15,2),
+                ong_id INTEGER
+            );
+            CREATE TABLE IF NOT EXISTS folha_pagamento (
+                id SERIAL PRIMARY KEY,
+                usuario_id INTEGER,
+                projeto_id INTEGER,
+                mes_referencia INTEGER,
+                ano_referencia INTEGER,
+                salario_base NUMERIC(15,2),
+                subsidios NUMERIC(15,2),
+                salario_liquido NUMERIC(15,2),
+                data_pagamento DATE,
+                estado VARCHAR(20)
+            );
+            CREATE TABLE IF NOT EXISTS configuracao (
+                id SERIAL PRIMARY KEY,
+                chave VARCHAR(100) UNIQUE,
+                valor TEXT
             );
 
-            -- NOVAS TABELAS DE GOVERNANÇA
+            -- GOVERNANÇA E CAIXA
             CREATE TABLE IF NOT EXISTS contas_caixa (
                 id SERIAL PRIMARY KEY,
                 nome VARCHAR(100) NOT NULL,
                 tipo VARCHAR(20) DEFAULT 'Banco',
                 saldo_atual DECIMAL(15,2) DEFAULT 0,
-                ong_id INTEGER NOT NULL DEFAULT 1,
-                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                ong_id INTEGER DEFAULT 1
             );
             CREATE TABLE IF NOT EXISTS transferencias (
                 id SERIAL PRIMARY KEY,
-                origem_id INTEGER REFERENCES contas_caixa(id),
-                destino_id INTEGER REFERENCES contas_caixa(id),
-                valor DECIMAL(15,2) NOT NULL,
-                data_transferencia DATE NOT NULL,
+                origem_id INTEGER,
+                destino_id INTEGER,
+                valor DECIMAL(15,2),
+                data_transferencia DATE DEFAULT CURRENT_DATE,
                 justificativa TEXT,
-                usuario_id INTEGER,
-                ong_id INTEGER DEFAULT 1
+                usuario_id INTEGER
             );
-            ALTER TABLE usuario ADD COLUMN IF NOT EXISTS cargo VARCHAR(100);
-            ALTER TABLE usuario ADD COLUMN IF NOT EXISTS bi_nuit VARCHAR(50);
-            ALTER TABLE usuario ADD COLUMN IF NOT EXISTS data_contratacao DATE;
-            ALTER TABLE usuario ADD COLUMN IF NOT EXISTS salario_base DECIMAL(15,2);
-            
             CREATE TABLE IF NOT EXISTS projeto_colaborador (
                 id SERIAL PRIMARY KEY,
-                projeto_id INTEGER REFERENCES projeto(id),
-                usuario_id INTEGER REFERENCES usuario(id),
-                funcao VARCHAR(100),
-                atribuido_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                projeto_id INTEGER,
+                usuario_id INTEGER,
+                funcao VARCHAR(100)
             );
-            ALTER TABLE atividade ADD COLUMN IF NOT EXISTS relatorio_progresso TEXT;
-            ALTER TABLE atividade ADD COLUMN IF NOT EXISTS status_execucao INTEGER DEFAULT 0;
-            ALTER TABLE atividade ADD COLUMN IF NOT EXISTS data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-            ALTER TABLE despesa ADD COLUMN IF NOT EXISTS parecer_coordenador TEXT;
-            ALTER TABLE despesa ADD COLUMN IF NOT EXISTS justificativa TEXT;
         `);
 
         // --- AUTO-SEED DO ADMINISTRADOR (Garante acesso ao sistema) ---
