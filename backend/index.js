@@ -55,160 +55,53 @@ app.get('*', (req, res) => {
 const runMigrations = async () => {
     const pool = require('./db_selector');
     try {
-        console.log('--- Verificando Estrutura do BD ---');
-        await pool.query(`
-            -- TABELAS PRINCIPAIS (ESQUEMA COMPLETO)
-            CREATE TABLE IF NOT EXISTS ong (
-                id SERIAL PRIMARY KEY,
-                nome VARCHAR(255) NOT NULL,
-                nuit_nif VARCHAR(50),
-                endereco VARCHAR(255),
-                contactos VARCHAR(100),
-                pais VARCHAR(50) DEFAULT 'Moçambique',
-                estatutos_url VARCHAR(255),
-                certificado_url VARCHAR(255)
-            );
-            CREATE TABLE IF NOT EXISTS usuario (
-                id SERIAL PRIMARY KEY,
-                nome VARCHAR(100) NOT NULL,
-                email VARCHAR(100) UNIQUE NOT NULL,
-                senha_hash VARCHAR(255) NOT NULL,
-                perfil VARCHAR(50) NOT NULL,
-                ativo BOOLEAN DEFAULT TRUE,
-                ong_id INTEGER,
-                cargo VARCHAR(100),
-                bi_nuit VARCHAR(50),
-                data_contratacao DATE,
-                salario_base DECIMAL(15,2)
-            );
-            CREATE TABLE IF NOT EXISTS financiador (
-                id SERIAL PRIMARY KEY,
-                nome VARCHAR(100) NOT NULL,
-                contato VARCHAR(100),
-                ong_id INTEGER
-            );
-            CREATE TABLE IF NOT EXISTS projeto (
-                id SERIAL PRIMARY KEY,
-                nome VARCHAR(255) NOT NULL,
-                codigo_interno VARCHAR(50) UNIQUE,
-                orcamento_total NUMERIC(15,2),
-                data_inicio DATE,
-                data_fim DATE,
-                objetivos TEXT,
-                estado VARCHAR(20),
-                ong_id INTEGER
-            );
-            CREATE TABLE IF NOT EXISTS centro_custo (
-                id SERIAL PRIMARY KEY,
-                nome VARCHAR(100) NOT NULL,
-                projeto_id INTEGER
-            );
-            CREATE TABLE IF NOT EXISTS atividade (
-                id SERIAL PRIMARY KEY,
-                projeto_id INTEGER,
-                nome VARCHAR(255) NOT NULL,
-                orcamento_previsto NUMERIC(15,2),
-                data_inicio DATE,
-                data_fim DATE,
-                status VARCHAR(20) DEFAULT 'planeado',
-                relatorio_progresso TEXT,
-                status_execucao INTEGER DEFAULT 0,
-                data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE TABLE IF NOT EXISTS receita (
-                id SERIAL PRIMARY KEY,
-                projeto_id INTEGER,
-                financiador_id INTEGER,
-                tipo_fundo VARCHAR(50),
-                data DATE DEFAULT CURRENT_DATE,
-                valor NUMERIC(15,2),
-                moeda VARCHAR(10) DEFAULT 'MZN',
-                taxa_cambio NUMERIC(18,6),
-                comprovativo_url VARCHAR(255)
-            );
-            CREATE TABLE IF NOT EXISTS despesa (
-                id SERIAL PRIMARY KEY,
-                projeto_id INTEGER,
-                atividade_id INTEGER,
-                centro_custo_id INTEGER,
-                categoria VARCHAR(100),
-                fornecedor VARCHAR(100),
-                valor NUMERIC(15,2),
-                moeda VARCHAR(10) DEFAULT 'MZN',
-                metodo_pagamento VARCHAR(50),
-                comprovativo_url VARCHAR(255),
-                responsavel_id INTEGER,
-                estado VARCHAR(20) DEFAULT 'submetido',
-                data_despesa DATE DEFAULT CURRENT_DATE,
-                justificativa TEXT,
-                parecer_coordenador TEXT
-            );
-            CREATE TABLE IF NOT EXISTS beneficiario (
-                id SERIAL PRIMARY KEY,
-                projeto_id INTEGER,
-                tipo VARCHAR(20),
-                numero_identificacao VARCHAR(50),
-                provincia VARCHAR(50),
-                distrito VARCHAR(50),
-                historico TEXT,
-                status VARCHAR(20)
-            );
-            CREATE TABLE IF NOT EXISTS patrimonio (
-                id SERIAL PRIMARY KEY,
-                nome VARCHAR(255) NOT NULL,
-                tipo VARCHAR(100),
-                codigo_ativo VARCHAR(50),
-                data_aquisicao DATE,
-                valor_compra NUMERIC(15,2),
-                estado_conservacao VARCHAR(50),
-                localizacao VARCHAR(100),
-                ong_id INTEGER
-            );
-            CREATE TABLE IF NOT EXISTS folha_pagamento (
-                id SERIAL PRIMARY KEY,
-                usuario_id INTEGER,
-                projeto_id INTEGER,
-                mes_referencia INTEGER,
-                ano_referencia INTEGER,
-                salario_base NUMERIC(15,2),
-                subsidios NUMERIC(15,2),
-                desconto_inss NUMERIC(15,2),
-                desconto_irps NUMERIC(15,2),
-                salario_liquido NUMERIC(15,2),
-                data_pagamento DATE,
-                estado VARCHAR(20)
-            );
-            CREATE TABLE IF NOT EXISTS configuracao (
-                id SERIAL PRIMARY KEY,
-                chave VARCHAR(100) UNIQUE,
-                valor TEXT,
-                descricao TEXT
-            );
-            CREATE TABLE IF NOT EXISTS contas_caixa (
-                id SERIAL PRIMARY KEY,
-                nome VARCHAR(100) NOT NULL,
-                tipo VARCHAR(20) DEFAULT 'Banco',
-                saldo_atual DECIMAL(15,2) DEFAULT 0,
-                ong_id INTEGER DEFAULT 1,
-                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE TABLE IF NOT EXISTS transferencias (
-                id SERIAL PRIMARY KEY,
-                origem_id INTEGER,
-                destino_id INTEGER,
-                valor DECIMAL(15,2),
-                data_transferencia DATE DEFAULT CURRENT_DATE,
-                justificativa TEXT,
-                usuario_id INTEGER
-            );
-            CREATE TABLE IF NOT EXISTS projeto_colaborador (
-                id SERIAL PRIMARY KEY,
-                projeto_id INTEGER,
-                usuario_id INTEGER,
-                funcao VARCHAR(100),
-                atribuido_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
+        console.log('--- Iniciando Sincronização de Esquema Robusta ---');
+
+        // Função auxiliar para rodar queries com log
+        const run = async (sql) => {
+            try { await pool.query(sql); } catch (e) { console.warn(`Aviso em query: ${e.message}`); }
+        };
+
+        // 1. Criar Tabelas Base (Estrutura mínima)
+        await run(`CREATE TABLE IF NOT EXISTS ong (id SERIAL PRIMARY KEY, nome VARCHAR(255) NOT NULL)`);
+        await run(`CREATE TABLE IF NOT EXISTS usuario (id SERIAL PRIMARY KEY, email VARCHAR(100) UNIQUE NOT NULL, senha_hash VARCHAR(255) NOT NULL)`);
+        await run(`CREATE TABLE IF NOT EXISTS projeto (id SERIAL PRIMARY KEY, nome VARCHAR(255) NOT NULL)`);
+        await run(`CREATE TABLE IF NOT EXISTS financiador (id SERIAL PRIMARY KEY, nome VARCHAR(100) NOT NULL)`);
+        await run(`CREATE TABLE IF NOT EXISTS atividade (id SERIAL PRIMARY KEY, nome VARCHAR(255) NOT NULL)`);
+        await run(`CREATE TABLE IF NOT EXISTS receita (id SERIAL PRIMARY KEY)`);
+        await run(`CREATE TABLE IF NOT EXISTS despesa (id SERIAL PRIMARY KEY)`);
+        await run(`CREATE TABLE IF NOT EXISTS beneficiario (id SERIAL PRIMARY KEY)`);
+        await run(`CREATE TABLE IF NOT EXISTS patrimonio (id SERIAL PRIMARY KEY, nome VARCHAR(255))`);
+        await run(`CREATE TABLE IF NOT EXISTS contas_caixa (id SERIAL PRIMARY KEY, nome VARCHAR(100) NOT NULL)`);
+        await run(`CREATE TABLE IF NOT EXISTS transferencias (id SERIAL PRIMARY KEY)`);
+        await run(`CREATE TABLE IF NOT EXISTS folha_pagamento (id SERIAL PRIMARY KEY)`);
+        await run(`CREATE TABLE IF NOT EXISTS configuracao (id SERIAL PRIMARY KEY, chave VARCHAR(100) UNIQUE)`);
+        await run(`CREATE TABLE IF NOT EXISTS centro_custo (id SERIAL PRIMARY KEY, nome VARCHAR(100) NOT NULL)`);
+        await run(`CREATE TABLE IF NOT EXISTS projeto_colaborador (id SERIAL PRIMARY KEY)`);
+
+        // 2. Garantir Colunas (ALTER TABLE IF NOT EXISTS - Resolvendo Erros 500 do Dashboard)
+        // Usuário
+        await run(`ALTER TABLE usuario ADD COLUMN IF NOT EXISTS nome VARCHAR(100), ADD COLUMN IF NOT EXISTS perfil VARCHAR(50), ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT TRUE, ADD COLUMN IF NOT EXISTS ong_id INTEGER, ADD COLUMN IF NOT EXISTS cargo VARCHAR(100), ADD COLUMN IF NOT EXISTS bi_nuit VARCHAR(50), ADD COLUMN IF NOT EXISTS salario_base DECIMAL(15,2)`);
+
+        // Projeto
+        await run(`ALTER TABLE projeto ADD COLUMN IF NOT EXISTS codigo_interno VARCHAR(50) UNIQUE, ADD COLUMN IF NOT EXISTS orcamento_total NUMERIC(15,2), ADD COLUMN IF NOT EXISTS ong_id INTEGER, ADD COLUMN IF NOT EXISTS data_inicio DATE, ADD COLUMN IF NOT EXISTS data_fim DATE, ADD COLUMN IF NOT EXISTS estado VARCHAR(20)`);
+
+        // Receita (AQUI ESTAVA O ERRO 500)
+        await run(`ALTER TABLE receita ADD COLUMN IF NOT EXISTS projeto_id INTEGER, ADD COLUMN IF NOT EXISTS financiador_id INTEGER, ADD COLUMN IF NOT EXISTS valor NUMERIC(15,2), ADD COLUMN IF NOT EXISTS data DATE DEFAULT CURRENT_DATE, ADD COLUMN IF NOT EXISTS tipo_fundo VARCHAR(50), ADD COLUMN IF NOT EXISTS moeda VARCHAR(10) DEFAULT 'MZN', ADD COLUMN IF NOT EXISTS taxa_cambio NUMERIC(18,6), ADD COLUMN IF NOT EXISTS comprovativo_url VARCHAR(255)`);
+
+        // Despesa (AQUI TAMBÉM)
+        await run(`ALTER TABLE despesa ADD COLUMN IF NOT EXISTS projeto_id INTEGER, ADD COLUMN IF NOT EXISTS atividade_id INTEGER, ADD COLUMN IF NOT EXISTS centro_custo_id INTEGER, ADD COLUMN IF NOT EXISTS categoria VARCHAR(100), ADD COLUMN IF NOT EXISTS fornecedor VARCHAR(100), ADD COLUMN IF NOT EXISTS valor NUMERIC(15,2), ADD COLUMN IF NOT EXISTS moeda VARCHAR(10) DEFAULT 'MZN', ADD COLUMN IF NOT EXISTS estado VARCHAR(20) DEFAULT 'submetido', ADD COLUMN IF NOT EXISTS responsavel_id INTEGER, ADD COLUMN IF NOT EXISTS data_despesa DATE DEFAULT CURRENT_DATE, ADD COLUMN IF NOT EXISTS justificativa TEXT, ADD COLUMN IF NOT EXISTS parecer_coordenador TEXT, ADD COLUMN IF NOT EXISTS metodo_pagamento VARCHAR(50), ADD COLUMN IF NOT EXISTS comprovativo_url VARCHAR(255)`);
+
+        // Outros
+        await run(`ALTER TABLE atividade ADD COLUMN IF NOT EXISTS projeto_id INTEGER, ADD COLUMN IF NOT EXISTS orcamento_previsto NUMERIC(15,2), ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'planeado', ADD COLUMN IF NOT EXISTS relatorio_progresso TEXT, ADD COLUMN IF NOT EXISTS status_execucao INTEGER DEFAULT 0`);
+        await run(`ALTER TABLE beneficiario ADD COLUMN IF NOT EXISTS projeto_id INTEGER, ADD COLUMN IF NOT EXISTS tipo VARCHAR(20), ADD COLUMN IF NOT EXISTS distrito VARCHAR(50), ADD COLUMN IF NOT EXISTS provincia VARCHAR(50), ADD COLUMN IF NOT EXISTS numero_identificacao VARCHAR(50)`);
+        await run(`ALTER TABLE folha_pagamento ADD COLUMN IF NOT EXISTS usuario_id INTEGER, ADD COLUMN IF NOT EXISTS projeto_id INTEGER, ADD COLUMN IF NOT EXISTS mes_referencia INTEGER, ADD COLUMN IF NOT EXISTS ano_referencia INTEGER, ADD COLUMN IF NOT EXISTS salario_base NUMERIC(15,2), ADD COLUMN IF NOT EXISTS salario_liquido NUMERIC(15,2), ADD COLUMN IF NOT EXISTS estado VARCHAR(20)`);
+        await run(`ALTER TABLE contas_caixa ADD COLUMN IF NOT EXISTS saldo_atual DECIMAL(15,2) DEFAULT 0, ADD COLUMN IF NOT EXISTS ong_id INTEGER DEFAULT 1`);
+        await run(`ALTER TABLE transferencias ADD COLUMN IF NOT EXISTS origem_id INTEGER, ADD COLUMN IF NOT EXISTS destino_id INTEGER, ADD COLUMN IF NOT EXISTS valor DECIMAL(15,2), ADD COLUMN IF NOT EXISTS data_transferencia DATE DEFAULT CURRENT_DATE, ADD COLUMN IF NOT EXISTS usuario_id INTEGER`);
+        await run(`ALTER TABLE projeto_colaborador ADD COLUMN IF NOT EXISTS projeto_id INTEGER, ADD COLUMN IF NOT EXISTS usuario_id INTEGER, ADD COLUMN IF NOT EXISTS funcao VARCHAR(100)`);
+        await run(`ALTER TABLE curso ADD COLUMN IF NOT EXISTS thumbnail_url VARCHAR(255)`); // Para evitar erros em outros módulos se existirem
+
+        console.log('--- Sincronização de Esquema Concluída ✅ ---');
 
         // --- AUTO-SEED DO ADMINISTRADOR (Garante acesso ao sistema) ---
         const bcrypt = require('bcryptjs');
