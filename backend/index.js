@@ -91,9 +91,41 @@ const runMigrations = async () => {
             ALTER TABLE atividade ADD COLUMN IF NOT EXISTS status_execucao INTEGER DEFAULT 0;
             ALTER TABLE atividade ADD COLUMN IF NOT EXISTS data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
         `);
+
+        // --- AUTO-SEED DO ADMINISTRADOR (Garante acesso ao sistema) ---
+        const bcrypt = require('bcryptjs');
+        const adminEmail = 'admin@civis.org';
+        const checkAdmin = await pool.query('SELECT id FROM usuario WHERE email = $1', [adminEmail]);
+
+        if (checkAdmin.rows.length === 0) {
+            console.log('--- Criando Usuário Administrador de Emergência ---');
+            const hash = await bcrypt.hash('admin123', 10);
+
+            // Garantir que existe pelo menos uma ONG para o admin
+            let ongId = 1;
+            const checkOng = await pool.query('SELECT id FROM ong LIMIT 1');
+            if (checkOng.rows.length > 0) {
+                ongId = checkOng.rows[0].id;
+            } else {
+                const newOng = await pool.query("INSERT INTO ong (nome, nuit_nif, pais) VALUES ('CIVIS Principal', '000000000', 'Moçambique') RETURNING id");
+                ongId = newOng.rows[0].id;
+            }
+
+            await pool.query(
+                "INSERT INTO usuario (nome, email, senha_hash, perfil, ativo, ong_id) VALUES ($1, $2, $3, $4, $5, $6)",
+                ['Administrador Principal', adminEmail, hash, 'Administrador', 1, ongId]
+            );
+            console.log('✅ Administrador criado: admin@civis.org / admin123');
+        } else {
+            // Opcional: Forçar reset de senha se houver problemas (pode ser comentado depois)
+            const hash = await bcrypt.hash('admin123', 10);
+            await pool.query("UPDATE usuario SET senha_hash = $1, ativo = 1 WHERE email = $2", [hash, adminEmail]);
+            console.log('✅ Senha do Administrador sincronizada: admin123');
+        }
+
         console.log('Banco de dados sincronizado ✅');
     } catch (err) {
-        console.error('Erro na migração:', err);
+        console.error('Erro na migração/seed:', err);
     }
 };
 
