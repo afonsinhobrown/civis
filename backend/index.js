@@ -55,16 +55,32 @@ app.get('*', (req, res) => {
 const runMigrations = async () => {
     const pool = require('./db_selector');
     try {
-        console.log('--- Iniciando Sincronização de Esquema Robusta ---');
+        console.log('--- Emergência: Sincronização de Acesso ---');
 
-        // Função auxiliar para rodar queries com log
+        // 1. Garantir Tabelas e Colunas Essenciais PRIMEIRO
         const run = async (sql) => {
-            try { await pool.query(sql); } catch (e) { console.warn(`Aviso em query: ${e.message}`); }
+            try { await pool.query(sql); } catch (e) { console.warn(`DB Sync Info: ${e.message}`); }
         };
 
-        // 1. Criar Tabelas Base (Estrutura mínima)
         await run(`CREATE TABLE IF NOT EXISTS ong (id SERIAL PRIMARY KEY, nome VARCHAR(255) NOT NULL)`);
         await run(`CREATE TABLE IF NOT EXISTS usuario (id SERIAL PRIMARY KEY, email VARCHAR(100) UNIQUE NOT NULL, senha_hash VARCHAR(255) NOT NULL)`);
+        await run(`ALTER TABLE usuario ADD COLUMN IF NOT EXISTS nome VARCHAR(100), ADD COLUMN IF NOT EXISTS perfil VARCHAR(50), ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT TRUE, ADD COLUMN IF NOT EXISTS ong_id INTEGER, ADD COLUMN IF NOT EXISTS cargo VARCHAR(100), ADD COLUMN IF NOT EXISTS bi_nuit VARCHAR(50), ADD COLUMN IF NOT EXISTS salario_base DECIMAL(15,2)`);
+
+        // 2. Inserir Admin
+        const bcrypt = require('bcryptjs');
+        const adminEmail = 'admin@civis.org';
+        const hash = await bcrypt.hash('admin123', 10);
+
+        await pool.query("INSERT INTO ong (id, nome) VALUES (1, 'CIVIS Cloud') ON CONFLICT DO NOTHING");
+        await pool.query(`
+            INSERT INTO usuario (nome, email, senha_hash, perfil, ativo, ong_id) 
+            VALUES ('Admin Principal', $1, $2, 'Administrador', true, 1)
+            ON CONFLICT (email) DO UPDATE SET senha_hash = $2, ativo = true, perfil = 'Administrador'
+        `, [adminEmail, hash]);
+
+        console.log('✅ Admin Garantido: admin@civis.org / admin123');
+
+        // 3. Continuar com o resto do sistema
         await run(`CREATE TABLE IF NOT EXISTS projeto (id SERIAL PRIMARY KEY, nome VARCHAR(255) NOT NULL)`);
         await run(`CREATE TABLE IF NOT EXISTS financiador (id SERIAL PRIMARY KEY, nome VARCHAR(100) NOT NULL)`);
         await run(`CREATE TABLE IF NOT EXISTS atividade (id SERIAL PRIMARY KEY, nome VARCHAR(255) NOT NULL)`);
@@ -78,10 +94,6 @@ const runMigrations = async () => {
         await run(`CREATE TABLE IF NOT EXISTS configuracao (id SERIAL PRIMARY KEY, chave VARCHAR(100) UNIQUE)`);
         await run(`CREATE TABLE IF NOT EXISTS centro_custo (id SERIAL PRIMARY KEY, nome VARCHAR(100) NOT NULL)`);
         await run(`CREATE TABLE IF NOT EXISTS projeto_colaborador (id SERIAL PRIMARY KEY)`);
-
-        // 2. Garantir Colunas (ALTER TABLE IF NOT EXISTS - Resolvendo Erros 500 do Dashboard)
-        // Usuário
-        await run(`ALTER TABLE usuario ADD COLUMN IF NOT EXISTS nome VARCHAR(100), ADD COLUMN IF NOT EXISTS perfil VARCHAR(50), ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT TRUE, ADD COLUMN IF NOT EXISTS ong_id INTEGER, ADD COLUMN IF NOT EXISTS cargo VARCHAR(100), ADD COLUMN IF NOT EXISTS bi_nuit VARCHAR(50), ADD COLUMN IF NOT EXISTS salario_base DECIMAL(15,2)`);
 
         // Projeto
         await run(`ALTER TABLE projeto ADD COLUMN IF NOT EXISTS codigo_interno VARCHAR(50) UNIQUE, ADD COLUMN IF NOT EXISTS orcamento_total NUMERIC(15,2), ADD COLUMN IF NOT EXISTS ong_id INTEGER, ADD COLUMN IF NOT EXISTS data_inicio DATE, ADD COLUMN IF NOT EXISTS data_fim DATE, ADD COLUMN IF NOT EXISTS estado VARCHAR(20)`);
@@ -102,37 +114,6 @@ const runMigrations = async () => {
         await run(`ALTER TABLE curso ADD COLUMN IF NOT EXISTS thumbnail_url VARCHAR(255)`); // Para evitar erros em outros módulos se existirem
 
         console.log('--- Sincronização de Esquema Concluída ✅ ---');
-
-        // --- AUTO-SEED DO ADMINISTRADOR (Garante acesso ao sistema) ---
-        const bcrypt = require('bcryptjs');
-        const adminEmail = 'admin@civis.org';
-        const checkAdmin = await pool.query('SELECT id FROM usuario WHERE email = $1', [adminEmail]);
-
-        if (checkAdmin.rows.length === 0) {
-            console.log('--- Criando Usuário Administrador de Emergência ---');
-            const hash = await bcrypt.hash('admin123', 10);
-
-            // Garantir que existe pelo menos uma ONG para o admin
-            let ongId = 1;
-            const checkOng = await pool.query('SELECT id FROM ong LIMIT 1');
-            if (checkOng.rows.length > 0) {
-                ongId = checkOng.rows[0].id;
-            } else {
-                const newOng = await pool.query("INSERT INTO ong (nome, nuit_nif, pais) VALUES ('CIVIS Principal', '000000000', 'Moçambique') RETURNING id");
-                ongId = newOng.rows[0].id;
-            }
-
-            await pool.query(
-                "INSERT INTO usuario (nome, email, senha_hash, perfil, ativo, ong_id) VALUES ($1, $2, $3, $4, $5, $6)",
-                ['Administrador Principal', adminEmail, hash, 'Administrador', 1, ongId]
-            );
-            console.log('✅ Administrador criado: admin@civis.org / admin123');
-        } else {
-            // Opcional: Forçar reset de senha se houver problemas (pode ser comentado depois)
-            const hash = await bcrypt.hash('admin123', 10);
-            await pool.query("UPDATE usuario SET senha_hash = $1, ativo = 1 WHERE email = $2", [hash, adminEmail]);
-            console.log('✅ Senha do Administrador sincronizada: admin123');
-        }
 
         console.log('Banco de dados sincronizado ✅');
     } catch (err) {
