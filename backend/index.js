@@ -57,6 +57,69 @@ const runMigrations = async () => {
     try {
         console.log('--- Verificando Estrutura do BD ---');
         await pool.query(`
+            -- TABELAS BASE SE NÃO EXISTIREM
+            CREATE TABLE IF NOT EXISTS ong (
+                id SERIAL PRIMARY KEY,
+                nome VARCHAR(255) NOT NULL,
+                nuit_nif VARCHAR(50) NOT NULL,
+                endereco VARCHAR(255),
+                contactos VARCHAR(100),
+                pais VARCHAR(50)
+            );
+            CREATE TABLE IF NOT EXISTS usuario (
+                id SERIAL PRIMARY KEY,
+                nome VARCHAR(100) NOT NULL,
+                email VARCHAR(100) UNIQUE NOT NULL,
+                senha_hash VARCHAR(255) NOT NULL,
+                perfil VARCHAR(50) NOT NULL,
+                ativo BOOLEAN DEFAULT TRUE,
+                ong_id INTEGER REFERENCES ong(id)
+            );
+            CREATE TABLE IF NOT EXISTS financiador (
+                id SERIAL PRIMARY KEY,
+                nome VARCHAR(100) NOT NULL,
+                contato VARCHAR(100),
+                ong_id INTEGER REFERENCES ong(id)
+            );
+            CREATE TABLE IF NOT EXISTS projeto (
+                id SERIAL PRIMARY KEY,
+                nome VARCHAR(255) NOT NULL,
+                codigo_interno VARCHAR(50) UNIQUE,
+                orcamento_total NUMERIC(15,2),
+                ong_id INTEGER REFERENCES ong(id)
+            );
+            CREATE TABLE IF NOT EXISTS atividade (
+                id SERIAL PRIMARY KEY,
+                projeto_id INTEGER REFERENCES projeto(id),
+                nome VARCHAR(255) NOT NULL,
+                orcamento_previsto NUMERIC(15,2),
+                status VARCHAR(20) DEFAULT 'planeado'
+            );
+            CREATE TABLE IF NOT EXISTS receita (
+                id SERIAL PRIMARY KEY,
+                projeto_id INTEGER REFERENCES projeto(id),
+                financiador_id INTEGER REFERENCES financiador(id),
+                valor NUMERIC(15,2),
+                data DATE DEFAULT CURRENT_DATE
+            );
+            CREATE TABLE IF NOT EXISTS despesa (
+                id SERIAL PRIMARY KEY,
+                projeto_id INTEGER REFERENCES projeto(id),
+                atividade_id INTEGER REFERENCES atividade(id),
+                categoria VARCHAR(100),
+                valor NUMERIC(15,2),
+                estado VARCHAR(20) DEFAULT 'submetido',
+                responsavel_id INTEGER REFERENCES usuario(id),
+                data_despesa DATE DEFAULT CURRENT_DATE
+            );
+            CREATE TABLE IF NOT EXISTS beneficiario (
+                id SERIAL PRIMARY KEY,
+                projeto_id INTEGER REFERENCES projeto(id),
+                tipo VARCHAR(20),
+                distrito VARCHAR(50)
+            );
+
+            -- NOVAS TABELAS DE GOVERNANÇA
             CREATE TABLE IF NOT EXISTS contas_caixa (
                 id SERIAL PRIMARY KEY,
                 nome VARCHAR(100) NOT NULL,
@@ -90,6 +153,8 @@ const runMigrations = async () => {
             ALTER TABLE atividade ADD COLUMN IF NOT EXISTS relatorio_progresso TEXT;
             ALTER TABLE atividade ADD COLUMN IF NOT EXISTS status_execucao INTEGER DEFAULT 0;
             ALTER TABLE atividade ADD COLUMN IF NOT EXISTS data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+            ALTER TABLE despesa ADD COLUMN IF NOT EXISTS parecer_coordenador TEXT;
+            ALTER TABLE despesa ADD COLUMN IF NOT EXISTS justificativa TEXT;
         `);
 
         // --- AUTO-SEED DO ADMINISTRADOR (Garante acesso ao sistema) ---

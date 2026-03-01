@@ -94,9 +94,9 @@ router.get('/receita', verificarToken, async (req, res) => {
         `;
         let params = [];
 
-        if (req.user.perfil === 'Gestor de Projeto') {
+        if (req.usuario.perfil === 'Gestor de Projeto') {
             sql += ` WHERE p.ong_id = $1 AND (p.id IN (SELECT id FROM projeto WHERE ong_id = $1)) `; // Simplificado: gestores de uma ONG veem os dela. Idealmente um link gestor_projeto.
-            params = [req.user.ong_id];
+            params = [req.usuario.ong_id];
         }
 
         sql += ` ORDER BY r.data DESC `;
@@ -132,9 +132,9 @@ router.get('/despesa', verificarToken, async (req, res) => {
         `;
         let params = [];
 
-        if (req.user.perfil === 'Gestor de Projeto') {
+        if (req.usuario.perfil === 'Gestor de Projeto') {
             sql += ` WHERE d.responsavel_id = $1 OR p.id IN (SELECT id FROM projeto WHERE ong_id = $2) `;
-            params = [req.user.id, req.user.ong_id];
+            params = [req.usuario.id, req.usuario.ong_id];
         }
 
         sql += ` ORDER BY d.data_despesa DESC `;
@@ -221,7 +221,7 @@ router.get('/ong', verificarToken, permitirPerfis('Administrador', 'Diretor', 'A
 // --- GESTÃO DE CAIXA E BANCO ---
 router.get('/conta_caixa', verificarToken, async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM contas_caixa WHERE ong_id = $1', [req.user.ong_id]);
+        const result = await pool.query('SELECT * FROM contas_caixa WHERE ong_id = $1', [req.usuario.ong_id]);
         res.json(result.rows);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -237,7 +237,7 @@ router.post('/transferencia', verificarToken, permitirPerfis('Administrador', 'F
         // Registrar log
         const result = await pool.query(
             'INSERT INTO transferencias (origem_id, destino_id, valor, data_transferencia, justificativa, usuario_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-            [origem_id, destino_id, valor, data, justificativa, req.user.id]
+            [origem_id, destino_id, valor, data, justificativa, req.usuario.id]
         );
         await pool.query('COMMIT');
         res.status(201).json(result.rows[0]);
@@ -317,9 +317,9 @@ router.get('/projeto', verificarToken, async (req, res) => {
         `;
         let params = [];
 
-        if (req.user.perfil === 'Gestor de Projeto') {
+        if (req.usuario.perfil === 'Gestor de Projeto') {
             sql += ` WHERE p.ong_id = $1 `;
-            params = [req.user.ong_id];
+            params = [req.usuario.ong_id];
         }
 
         sql += ` ORDER BY p.data_inicio DESC `;
@@ -336,7 +336,7 @@ router.post('/atividade', verificarToken, permitirPerfis('Administrador', 'Gesto
     try {
         const result = await pool.query(
             'INSERT INTO atividade (projeto_id, nome, orcamento_previsto, responsavel_id, data_inicio, data_fim, status) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
-            [projeto_id, nome, orcamento_previsto, responsavel_id || req.user.id, data_inicio, data_fim, status || 'planeado']
+            [projeto_id, nome, orcamento_previsto, responsavel_id || req.usuario.id, data_inicio, data_fim, status || 'planeado']
         );
         res.status(201).json(result.rows[0]);
     } catch (err) {
