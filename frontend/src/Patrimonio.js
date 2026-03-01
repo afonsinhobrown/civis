@@ -49,7 +49,13 @@ function Patrimonio() {
             </div>
 
             <div className="card">
-                <h3>Lista de Bens e Ativos</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h3 style={{ margin: 0 }}>Lista de Bens e Ativos</h3>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button className="nav-button" onClick={() => window.open('/api/relatorio/patrimonio/pdf', '_blank')} style={{ background: '#e74c3c', padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}>📑 PDF Inventário</button>
+                        <button className="nav-button" onClick={() => window.open('/api/relatorio/patrimonio/excel', '_blank')} style={{ background: '#27ae60', padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}>📊 Excel</button>
+                    </div>
+                </div>
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
                         <thead>

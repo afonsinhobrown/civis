@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 import Dashboard from './Dashboard';
 import Projetos from './Projetos';
-import Usuarios from './Usuarios';
+import RH from './RH'; // Substituindo Usuarios por RH mais completo
 import Despesas from './Despesas';
 import Receitas from './Receitas';
 import Auditoria from './Auditoria';
@@ -11,6 +11,8 @@ import GestaoFinanceira from './GestaoFinanceira';
 import Salarios from './Salarios';
 import Patrimonio from './Patrimonio';
 import Configuracao from './Configuracao';
+import Relatorios from './Relatorios';
+import GestaoCaixa from './GestaoCaixa';
 
 function App() {
     const [token, setToken] = useState(localStorage.getItem('token'));
@@ -48,26 +50,30 @@ function App() {
 
             <nav style={{ flexWrap: 'wrap', gap: '5px' }}>
                 <button className={modulo === 'dashboard' ? 'active' : ''} onClick={() => setModulo('dashboard')}>Dashboard</button>
-                <button className={modulo === 'financeiro' ? 'active' : ''} onClick={() => setModulo('financeiro')}>Financeiro</button>
+                <button className={modulo === 'financeiro' ? 'active' : ''} onClick={() => setModulo('financeiro')}>Geral</button>
+                <button className={modulo === 'caixa' ? 'active' : ''} onClick={() => setModulo('caixa')}>🏦 Caixa</button>
+                <button className={modulo === 'rh' ? 'active' : ''} onClick={() => setModulo('rh')}>👥 RH</button>
                 <button className={modulo === 'salarios' ? 'active' : ''} onClick={() => setModulo('salarios')}>Salários</button>
                 <button className={modulo === 'patrimonio' ? 'active' : ''} onClick={() => setModulo('patrimonio')}>Património</button>
                 <button className={modulo === 'projetos' ? 'active' : ''} onClick={() => setModulo('projetos')}>Projetos</button>
-                <button className={modulo === 'usuarios' ? 'active' : ''} onClick={() => setModulo('usuarios')}>Utilizadores</button>
                 <button className={modulo === 'receitas' ? 'active' : ''} onClick={() => setModulo('receitas')}>Entradas</button>
                 <button className={modulo === 'despesas' ? 'active' : ''} onClick={() => setModulo('despesas')}>Saídas</button>
-                <button className={modulo === 'auditoria' ? 'active' : ''} onClick={() => setModulo('auditoria')}>🛡️ Auditoria</button>
+                <button className={modulo === 'relatorios' ? 'active' : ''} onClick={() => setModulo('relatorios')}>📑 Relatórios</button>
+                <button className={modulo === 'auditoria' ? 'active' : ''} onClick={() => setModulo('auditoria')}>🛡️</button>
                 <button className={modulo === 'config' ? 'active' : ''} onClick={() => setModulo('config')}>⚙️</button>
             </nav>
 
             <main className="main-content">
                 {modulo === 'dashboard' && <Dashboard user={user} />}
                 {modulo === 'financeiro' && <GestaoFinanceira user={user} />}
+                {modulo === 'caixa' && <GestaoCaixa user={user} />}
+                {modulo === 'rh' && <RH user={user} />}
                 {modulo === 'salarios' && <Salarios user={user} />}
                 {modulo === 'patrimonio' && <Patrimonio user={user} />}
                 {modulo === 'projetos' && <Projetos user={user} />}
-                {modulo === 'usuarios' && <Usuarios user={user} />}
                 {modulo === 'receitas' && <Receitas user={user} />}
                 {modulo === 'despesas' && <Despesas user={user} />}
+                {modulo === 'relatorios' && <Relatorios user={user} />}
                 {modulo === 'auditoria' && <Auditoria user={user} />}
                 {modulo === 'config' && <Configuracao user={user} />}
             </main>

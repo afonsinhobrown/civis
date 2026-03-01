@@ -180,12 +180,47 @@ function Projetos() {
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                                     {atividades.length === 0 && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Nenhuma atividade cadastrada.</p>}
                                     {atividades.map(a => (
-                                        <div key={a.id} style={{ padding: '0.8rem', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div>
-                                                <span style={{ fontSize: '0.9rem', display: 'block' }}>{a.nome}</span>
-                                                <small style={{ color: 'var(--text-muted)' }}>Status: {a.status}</small>
+                                        <div key={a.id} style={{ padding: '1rem', background: 'rgba(255,255,255,0.04)', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div>
+                                                    <span style={{ fontSize: '1rem', fontWeight: 'bold' }}>{a.nome}</span>
+                                                    <small style={{ color: 'var(--text-muted)', display: 'block' }}>Progresso: {a.status_execucao || 0}%</small>
+                                                </div>
+                                                <strong style={{ fontSize: '1rem' }}>{Number(a.orcamento_previsto).toLocaleString()} MT</strong>
                                             </div>
-                                            <strong style={{ fontSize: '0.85rem' }}>{Number(a.orcamento_previsto).toLocaleString()} MT</strong>
+
+                                            <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
+                                                <div style={{ width: `${a.status_execucao || 0}%`, height: '100%', background: 'var(--accent)', borderRadius: '2px' }}></div>
+                                            </div>
+
+                                            <details style={{ fontSize: '0.85rem', marginTop: '5px' }}>
+                                                <summary style={{ cursor: 'pointer', color: 'var(--accent)' }}>Atualizar Relatório de Atividade</summary>
+                                                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                                    <textarea
+                                                        placeholder="Descreva o que foi feito nesta atividade..."
+                                                        defaultValue={a.relatorio_progresso}
+                                                        id={`rel-${a.id}`}
+                                                        style={{ background: 'rgba(0,0,0,0.2)', color: 'white', border: '1px solid var(--border)', borderRadius: '4px', padding: '5px' }}
+                                                    />
+                                                    <div style={{ display: 'flex', gap: '5px' }}>
+                                                        <input type="number" placeholder="%" id={`prog-${a.id}`} defaultValue={a.status_execucao} style={{ width: '60px' }} />
+                                                        <button
+                                                            onClick={async () => {
+                                                                const rel = document.getElementById(`rel-${a.id}`).value;
+                                                                const prg = document.getElementById(`prog-${a.id}`).value;
+                                                                try {
+                                                                    await axios.patch(`/api/atividade/${a.id}/progresso`, { relatorio: rel, progresso: prg });
+                                                                    alert('Relatório de atividade atualizado!');
+                                                                    fetchAtividades(selected.id);
+                                                                } catch (err) { alert('Erro ao atualizar relatório.'); }
+                                                            }}
+                                                            style={{ flex: 1, background: 'var(--primary)', border: 'none', color: 'white', borderRadius: '4px', cursor: 'pointer' }}
+                                                        >
+                                                            Salvar Relatório de Auditoria
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </details>
                                         </div>
                                     ))}
                                 </div>

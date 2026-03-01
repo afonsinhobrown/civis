@@ -159,75 +159,79 @@ function Despesas({ user }) {
                 </div>
             </div>
 
-            <div className="card">
-                <h3>Trilho de Auditoria de Despesas & Governação</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
-                    {despesas.map(d => (
-                        <div key={d.id} style={{
-                            padding: '1.5rem',
-                            borderRadius: '12px',
-                            background: 'rgba(255,255,255,0.02)',
-                            border: '1px solid var(--border)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '1rem'
-                        }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                <div>
-                                    <h4 style={{ margin: 0 }}>{d.fornecedor} <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--primary)' }}>({d.categoria || 'Geral'})</span></h4>
-                                    <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '5px' }}>
-                                        Projeto: <strong>{d.projeto_nome}</strong> | Responsável: {d.responsavel_nome}
-                                    </small>
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--accent)', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '4px', marginTop: '8px', display: 'inline-block' }}>
-                                        Atividade: {d.atividade_nome || 'Ateção: Sem Atividade Vinc.'}
-                                    </span>
-                                </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <span style={{ fontSize: '1.3rem', fontWeight: '800', display: 'block' }}>{Number(d.valor).toLocaleString()} {d.moeda}</span>
-                                    <span style={{
-                                        fontSize: '0.7rem',
-                                        padding: '4px 10px',
-                                        borderRadius: '50px',
-                                        background: d.estado === 'aprovado' ? 'var(--accent)' : d.estado === 'revisar' ? '#f59e0b' : d.estado === 'rejeitado' ? 'var(--danger)' : 'var(--primary)',
-                                        color: 'white',
-                                        marginTop: '5px',
-                                        display: 'inline-block'
-                                    }}>{d.estado.toUpperCase()}</span>
-                                </div>
+            <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0 }}>Trilho de Auditoria de Despesas & Governação</h3>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button className="nav-button" onClick={() => window.open('/api/relatorio/financeiro/pdf', '_blank')} style={{ background: '#e74c3c', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>📑 PDF Rico</button>
+                    <button className="nav-button" onClick={() => window.open('/api/relatorio/financeiro/excel', '_blank')} style={{ background: '#27ae60', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>📊 Excel</button>
+                </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
+                {despesas.map(d => (
+                    <div key={d.id} style={{
+                        padding: '1.5rem',
+                        borderRadius: '12px',
+                        background: 'rgba(255,255,255,0.02)',
+                        border: '1px solid var(--border)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '1rem'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                                <h4 style={{ margin: 0 }}>{d.fornecedor} <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--primary)' }}>({d.categoria || 'Geral'})</span></h4>
+                                <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '5px' }}>
+                                    Projeto: <strong>{d.projeto_nome}</strong> | Responsável: {d.responsavel_nome}
+                                </small>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--accent)', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '4px', marginTop: '8px', display: 'inline-block' }}>
+                                    Atividade: {d.atividade_nome || 'Ateção: Sem Atividade Vinc.'}
+                                </span>
                             </div>
-
-                            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', fontSize: '0.9rem' }}>
-                                <small style={{ color: 'var(--text-muted)', fontWeight: 'bold' }}>JUSTIFICATIVA DE AUDITORIA:</small>
-                                <p style={{ margin: '5px 0' }}>{d.justificativa || 'Sem justificativa fornecida.'}</p>
-
-                                {d.parecer_coordenador && (
-                                    <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '10px' }}>
-                                        <small style={{ color: d.estado === 'aprovado' ? 'var(--accent)' : 'var(--danger)', fontWeight: 'bold' }}>PARECER DA COORDENAÇÃO:</small>
-                                        <p style={{ margin: '5px 0', fontStyle: 'italic' }}>{d.parecer_coordenador}</p>
-                                    </div>
-                                )}
+                            <div style={{ textAlign: 'right' }}>
+                                <span style={{ fontSize: '1.3rem', fontWeight: '800', display: 'block' }}>{Number(d.valor).toLocaleString()} {d.moeda}</span>
+                                <span style={{
+                                    fontSize: '0.7rem',
+                                    padding: '4px 10px',
+                                    borderRadius: '50px',
+                                    background: d.estado === 'aprovado' ? 'var(--accent)' : d.estado === 'revisar' ? '#f59e0b' : d.estado === 'rejeitado' ? 'var(--danger)' : 'var(--primary)',
+                                    color: 'white',
+                                    marginTop: '5px',
+                                    display: 'inline-block'
+                                }}>{d.estado.toUpperCase()}</span>
                             </div>
+                        </div>
 
-                            {canApprove && (d.estado === 'submetido' || d.estado === 'revisar') && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '0.5rem' }}>
-                                    {parecerForm.id === d.id ? (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                                            <textarea placeholder="Escreva o parecer para o gestor..." value={parecerForm.texto} onChange={e => setParecerForm({ ...parecerForm, texto: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', background: 'rgba(255,255,255,0.1)', color: 'white' }} />
-                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                <button onClick={() => handleGovernançaAction(d.id, 'aprovar')} className="nav-button" style={{ background: 'var(--accent)', flex: 1 }}>Confirmar Aprovação</button>
-                                                <button onClick={() => handleGovernançaAction(d.id, 'revisar')} className="nav-button" style={{ background: '#f59e0b', flex: 1 }}>Mandar Refazer</button>
-                                                <button onClick={() => handleGovernançaAction(d.id, 'rejeitado')} className="nav-button" style={{ background: 'var(--danger)', flex: 1 }}>Rejeitar Totalmente</button>
-                                                <button onClick={() => setParecerForm({ id: null, texto: '', acao: '' })} className="nav-button" style={{ background: 'gray' }}>Cancelar</button>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <button onClick={() => setParecerForm({ id: d.id, texto: '', acao: '' })} className="nav-button" style={{ background: 'var(--accent)' }}>Analisar e Dar Parecer</button>
-                                    )}
+                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', fontSize: '0.9rem' }}>
+                            <small style={{ color: 'var(--text-muted)', fontWeight: 'bold' }}>JUSTIFICATIVA DE AUDITORIA:</small>
+                            <p style={{ margin: '5px 0' }}>{d.justificativa || 'Sem justificativa fornecida.'}</p>
+
+                            {d.parecer_coordenador && (
+                                <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '10px' }}>
+                                    <small style={{ color: d.estado === 'aprovado' ? 'var(--accent)' : 'var(--danger)', fontWeight: 'bold' }}>PARECER DA COORDENAÇÃO:</small>
+                                    <p style={{ margin: '5px 0', fontStyle: 'italic' }}>{d.parecer_coordenador}</p>
                                 </div>
                             )}
                         </div>
-                    ))}
-                </div>
+
+                        {canApprove && (d.estado === 'submetido' || d.estado === 'revisar') && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '0.5rem' }}>
+                                {parecerForm.id === d.id ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                                        <textarea placeholder="Escreva o parecer para o gestor..." value={parecerForm.texto} onChange={e => setParecerForm({ ...parecerForm, texto: e.target.value })} style={{ padding: '0.8rem', borderRadius: '8px', background: 'rgba(255,255,255,0.1)', color: 'white' }} />
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <button onClick={() => handleGovernançaAction(d.id, 'aprovar')} className="nav-button" style={{ background: 'var(--accent)', flex: 1 }}>Confirmar Aprovação</button>
+                                            <button onClick={() => handleGovernançaAction(d.id, 'revisar')} className="nav-button" style={{ background: '#f59e0b', flex: 1 }}>Mandar Refazer</button>
+                                            <button onClick={() => handleGovernançaAction(d.id, 'rejeitado')} className="nav-button" style={{ background: 'var(--danger)', flex: 1 }}>Rejeitar Totalmente</button>
+                                            <button onClick={() => setParecerForm({ id: null, texto: '', acao: '' })} className="nav-button" style={{ background: 'gray' }}>Cancelar</button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button onClick={() => setParecerForm({ id: d.id, texto: '', acao: '' })} className="nav-button" style={{ background: 'var(--accent)' }}>Analisar e Dar Parecer</button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                ))}
             </div>
         </div>
     );

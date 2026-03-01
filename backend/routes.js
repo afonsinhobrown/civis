@@ -217,26 +217,81 @@ router.get('/ong', verificarToken, permitirPerfis('Administrador', 'Diretor', 'A
     }
 });
 
-// Usuário
-router.post('/usuario', verificarToken, permitirPerfis('Administrador'), async (req, res) => {
-    const { nome, email, senha_hash, perfil, ativo, ong_id } = req.body;
+// --- GESTÃO DE CAIXA E BANCO ---
+router.get('/conta_caixa', verificarToken, async (req, res) => {
     try {
+        const result = await pool.query('SELECT * FROM contas_caixa WHERE ong_id = $1', [req.user.ong_id]);
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/transferencia', verificarToken, permitirPerfis('Administrador', 'Financeiro'), async (req, res) => {
+    const { origem_id, destino_id, valor, data, justificativa } = req.body;
+    try {
+        await pool.query('BEGIN');
+        // Debitar origem
+        await pool.query('UPDATE contas_caixa SET saldo_atual = saldo_atual - $1 WHERE id = $2', [valor, origem_id]);
+        // Creditar destino
+        await pool.query('UPDATE contas_caixa SET saldo_atual = saldo_atual + $1 WHERE id = $2', [valor, destino_id]);
+        // Registrar log
         const result = await pool.query(
-            'INSERT INTO usuario (nome, email, senha_hash, perfil, ativo, ong_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-            [nome, email, senha_hash, perfil, ativo, ong_id]
+            'INSERT INTO transferencias (origem_id, destino_id, valor, data_transferencia, justificativa, usuario_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+            [origem_id, destino_id, valor, data, justificativa, req.user.id]
         );
+        await pool.query('COMMIT');
         res.status(201).json(result.rows[0]);
     } catch (err) {
+        await pool.query('ROLLBACK');
         res.status(500).json({ error: err.message });
     }
 });
-router.get('/usuario', verificarToken, permitirPerfis('Administrador', 'Diretor'), async (req, res) => {
+
+// --- GESTÃO DE RECURSOS HUMANOS (EXTENSÃO) ---
+router.post('/colaborador/projeto', verificarToken, permitirPerfis('Administrador', 'Gestor de Projeto'), async (req, res) => {
+    const { projeto_id, usuario_id, funcao } = req.body;
     try {
-        const result = await pool.query('SELECT * FROM usuario');
+        const result = await pool.query(
+            'INSERT INTO projeto_colaborador (projeto_id, usuario_id, funcao) VALUES ($1,$2,$3) RETURNING *',
+            [projeto_id, usuario_id, funcao]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/colaborador/pagamentos/:usuario_id', verificarToken, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT fp.*, p.nome as projeto_nome 
+            FROM folha_pagamento fp 
+            LEFT JOIN projeto p ON fp.projeto_id = p.id 
+            WHERE fp.usuario_id = $1 ORDER BY data_pagamento DESC
+        `, [req.params.usuario_id]);
         res.json(result.rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/atividade/:id/progresso', verificarToken, permitirPerfis('Administrador', 'Gestor de Projeto'), async (req, res) => {
+    const { relatorio, progresso } = req.body;
+    try {
+        const result = await pool.query(
+            'UPDATE atividade SET relatorio_progresso = $1, status_execucao = $2, data_atualizacao = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *',
+            [relatorio, progresso, req.params.id]
+        );
+        res.json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Sobrescrever Usuário para incluir RH
+router.get('/usuario', verificarToken, permitirPerfis('Administrador', 'Diretor', 'Financeiro'), async (req, res) => {
+    try {
+        // Query rica com join para saber projetos do colaborador
+        const result = await pool.query(`
+            SELECT u.*, 
+            (SELECT json_agg(p.nome) FROM projeto_colaborador pc JOIN projeto p ON pc.projeto_id = p.id WHERE pc.usuario_id = u.id) as projetos
+            FROM usuario u
+        `);
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Projeto
@@ -262,7 +317,7 @@ router.get('/projeto', verificarToken, async (req, res) => {
         let params = [];
 
         if (req.user.perfil === 'Gestor de Projeto') {
-            sql += ` WHERE p.ong_id = $1 `; // Filtro por ONG para começar
+            sql += ` WHERE p.ong_id = $1 `;
             params = [req.user.ong_id];
         }
 
